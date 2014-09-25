@@ -2,6 +2,7 @@ package main
 
 import (
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -19,8 +20,6 @@ type PayPalTxn struct {
 	NetAmt float32
 	CurrencyCode string
 }
-
-type PayPalTxns []*PayPalTxn
 
 func NewPayPalTxn(tran map[string]string) *PayPalTxn {
 	result := new(PayPalTxn)
@@ -49,6 +48,8 @@ func NewPayPalTxn(tran map[string]string) *PayPalTxn {
 	return result
 }
 
+type PayPalTxns []*PayPalTxn
+
 func PayPalTxnsFromNvp(nvp *NvpResult) PayPalTxns {
 	result := make(PayPalTxns, len(nvp.List))
 
@@ -58,4 +59,19 @@ func PayPalTxnsFromNvp(nvp *NvpResult) PayPalTxns {
 	}
 
 	return result
+}
+
+// Sorting
+
+func (p PayPalTxns) Len() int      { return len(p) }
+func (p PayPalTxns) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+
+type ByDate struct { PayPalTxns }
+
+func (s ByDate) Less(i, j int) bool {
+	return s.PayPalTxns[i].Timestamp.Before(s.PayPalTxns[j].Timestamp)
+}
+
+func (p PayPalTxns) Sort() {
+	sort.Sort(ByDate{p})
 }
