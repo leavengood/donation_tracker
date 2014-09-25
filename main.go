@@ -6,7 +6,8 @@ import (
 )
 
 func main() {
-	data, err := CallPayPalNvpApi("TransactionSearch", "117.0")
+	data, err := CallPayPalNvpApi("TransactionSearch", "117.0",
+		NameValues{"STARTDATE": "2014-09-25T09:00:00Z"})
 	if err != nil {
 		log.Fatal(err)
 	}

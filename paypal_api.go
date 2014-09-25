@@ -20,15 +20,17 @@ const (
 	Signature = "AFcWxV21C7fd0v3bYYYRCpSSRl31A7yDhhsPUU2XhtMoZXsWHFxu-RWy"
 )
 
-// func CallPayPalNvpApi(method string, version string, params NameValues) {
-func CallPayPalNvpApi(method string, version string) (string, error) {
+func CallPayPalNvpApi(method string, version string, params NameValues) (string, error) {
 	v := url.Values{}
 	v.Set(MethodKey, method)
 	v.Set(VersionKey, version)
 	v.Set(UserKey, User)
 	v.Set(PasswordKey, Password)
 	v.Set(SignatureKey, Signature)
-	v.Set("STARTDATE", "2014-09-25T09:00:00Z")
+
+	for name, value := range(params) {
+		v.Set(name, value)
+	}
 
 	resp, err := http.PostForm(SandboxEndPoint, v)
 	if err != nil {
