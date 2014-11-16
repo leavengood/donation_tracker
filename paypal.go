@@ -85,3 +85,13 @@ func (s ByDate) Less(i, j int) bool {
 func (p PayPalTxns) Sort() {
 	sort.Sort(ByDate{p})
 }
+
+func (p PayPalTxns) TotalByCurrency() CurrencyCount {
+	result := make(CurrencyCount)
+
+	for _, txn := range p {
+		result[txn.CurrencyCode] += txn.Amt
+	}
+
+	return result
+}
