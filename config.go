@@ -25,7 +25,7 @@ func LoadConfig(filename string) (NameValues, error) {
 func (nv NameValues) HasFields(fields []string) bool {
 	result := true
 
-	for _, field := range(fields) {
+	for _, field := range fields {
 		_, found := nv[field]
 		result = result && found
 	}
@@ -36,6 +36,7 @@ func (nv NameValues) HasFields(fields []string) bool {
 const ConfigFile = "config.json"
 
 var config NameValues
+
 func init() {
 	var err error
 	config, err = LoadConfig(ConfigFile)
