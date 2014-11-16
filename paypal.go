@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+const PayPalDateFormat = "2006-01-02T15:04:05Z"
+
 type PayPalTxn struct {
 	Timestamp time.Time
 	Type string
@@ -39,7 +41,7 @@ func NewPayPalTxn(tran map[string]string) *PayPalTxn {
 				field.SetFloat(f)
 			default:
 				// its the Timestamp field
-				timestamp, _ := time.Parse("2006-01-02T15:04:05Z", value)
+				timestamp, _ := time.Parse(PayPalDateFormat, value)
 				field.Set(reflect.ValueOf(timestamp))
 			}
 		}
