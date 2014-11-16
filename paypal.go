@@ -50,6 +50,14 @@ func NewPayPalTxn(tran map[string]string) *PayPalTxn {
 	return result
 }
 
+func (p *PayPalTxn) IsSubscription() bool {
+	return p.Amt > 0 && p.Type == "Payment"
+}
+
+func (p *PayPalTxn) IsDonation() bool {
+	return p.Amt > 0 && p.Type == "Donation"
+}
+
 type PayPalTxns []*PayPalTxn
 
 func PayPalTxnsFromNvp(nvp *NvpResult) PayPalTxns {
