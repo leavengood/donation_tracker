@@ -11,16 +11,16 @@ import (
 const PayPalDateFormat = "2006-01-02T15:04:05Z"
 
 type PayPalTxn struct {
-	Timestamp time.Time
-	Type string
-	Email string
-	Name string
+	Timestamp     time.Time
+	Type          string
+	Email         string
+	Name          string
 	TransactionID string
-	Status string
-	Amt float32
-	FeeAmt float32
-	NetAmt float32
-	CurrencyCode string
+	Status        string
+	Amt           float32
+	FeeAmt        float32
+	NetAmt        float32
+	CurrencyCode  string
 }
 
 func NewPayPalTxn(tran map[string]string) *PayPalTxn {
@@ -28,7 +28,7 @@ func NewPayPalTxn(tran map[string]string) *PayPalTxn {
 
 	elem := reflect.ValueOf(result).Elem()
 
-	for name, value := range(tran) {
+	for name, value := range tran {
 		field := elem.FieldByNameFunc(func(n string) bool {
 			return name == strings.ToUpper(n)
 		})
@@ -63,7 +63,7 @@ type PayPalTxns []*PayPalTxn
 func PayPalTxnsFromNvp(nvp *NvpResult) PayPalTxns {
 	result := make(PayPalTxns, len(nvp.List))
 
-	for i, item := range(nvp.List) {
+	for i, item := range nvp.List {
 		result[i] = NewPayPalTxn(item)
 		// fmt.Println(result[i])
 	}
@@ -76,7 +76,7 @@ func PayPalTxnsFromNvp(nvp *NvpResult) PayPalTxns {
 func (p PayPalTxns) Len() int      { return len(p) }
 func (p PayPalTxns) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 
-type ByDate struct { PayPalTxns }
+type ByDate struct{ PayPalTxns }
 
 func (s ByDate) Less(i, j int) bool {
 	return s.PayPalTxns[i].Timestamp.Before(s.PayPalTxns[j].Timestamp)
