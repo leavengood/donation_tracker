@@ -95,3 +95,15 @@ func (p PayPalTxns) TotalByCurrency() CurrencyCount {
 
 	return result
 }
+
+func (p PayPalTxns) OnlyDonations() PayPalTxns {
+	result := make(PayPalTxns, 0, len(p))
+
+	for _, item := range p {
+		if item.IsDonation() || item.IsSubscription() {
+			result = append(result, item)
+		}
+	}
+
+	return result
+}

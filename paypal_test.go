@@ -64,3 +64,55 @@ func TestTotalByCurrencyWithMultipleItemsInDifferentCurrency(t *testing.T) {
 }
 
 //==============================================================================
+// PayPalTxns.OnlyDonations
+//==============================================================================
+
+func CallOnlyDonationsWith(txns ...*PayPalTxn) PayPalTxns {
+	testing := PayPalTxns{}
+
+	testing = append(testing, txns...)
+
+	return testing.OnlyDonations()
+}
+
+func TestOnlyDonationsWithEmptyArray(t *testing.T) {
+	assert.Equal(t, 0, len(CallOnlyDonationsWith()))
+}
+
+func TestOnlyDonationsWithOneItem(t *testing.T) {
+	result := CallOnlyDonationsWith(
+		&PayPalTxn{Amt: 5.43, Type: "Donation"},
+	)
+
+	assert.Equal(t, 1, len(result))
+}
+
+func TestOnlyDonationsWithAPayment(t *testing.T) {
+	result := CallOnlyDonationsWith(
+		&PayPalTxn{Amt: -5.43, Type: "Payment"},
+	)
+
+	assert.Equal(t, 0, len(result))
+}
+
+func TestOnlyDonationsWithOneDonationAndOnePayment(t *testing.T) {
+	result := CallOnlyDonationsWith(
+		&PayPalTxn{Amt: 5.43, Type: "Donation"},
+		&PayPalTxn{Amt: -3.12, Type: "Payment"},
+	)
+
+	assert.Equal(t, 1, len(result))
+	assert.Equal(t, 5.43, result[0].Amt)
+}
+
+func TestOnlyDonationsWithADonationSubscriptionAndPayment(t *testing.T) {
+	result := CallOnlyDonationsWith(
+		&PayPalTxn{Amt: 5.43, Type: "Donation"},
+		&PayPalTxn{Amt: -3.12, Type: "Payment"},
+		&PayPalTxn{Amt: 2.45, Type: "Payment"},
+	)
+
+	assert.Equal(t, 2, len(result))
+	assert.Equal(t, 5.43, result[0].Amt)
+	assert.Equal(t, 2.45, result[1].Amt)
+}
