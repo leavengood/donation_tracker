@@ -1,29 +1,76 @@
-<div style="width: 16em;">
-  <p style="text-align: center; font-size: 1.6em;">
+<style>
+  .piggy-bank {
+    background-image: url('http://www.haiku-inc.org/images/piggy-bank.png');
+    background-repeat:no-repeat;
+    background-position: left;
+    width: 250px;
+    height: 128px;
+    margin-top: 30px;
+    margin-bottom: 20px;
+  }
+  .progress-bar-borders {
+    position: relative;
+    left: 98px;
+    width: 20px;
+    height:128px;
+    border-right: 1px solid #060606;
+    border-bottom: 1px solid #060606;
+    opacity: 0.9;
+  }
+  .progress-bar-background {
+    position: relative;
+    top: -2px;
+    left: -2px;
+    width: 20px;
+    height:128px;
+    margin: 0px;
+    font-size: 1.2em;
+    border: 1px solid #666;
+    background-color: #FAFAFA;
+  }
+  .progress-bar-filler {
+    position:absolute;
+    bottom: 0px;
+    width: 20px;
+    height: 5px;
+    margin: 0px;
+    background: #3C3;
+  }
+  .goal-text {
+    position: relative;
+    top:-23px;
+    left:26px;
+    width: 120px;
+    border-bottom: 1px solid #666;
+  }
+  .current-text {
+    position: relative;
+    left: 26px;
+    width: 120px;
+    border-top: 1px solid #666;
+  }
+</style>
+
+<div>
+  <h3>
     Fundraising 2015
-  </p>
-  <div style='background-image: url("http://www.haiku-inc.org/images/piggy-bank.png");
-        background-repeat:no-repeat; background-position: left;'>
-    <div style='position:relative;
-          border-right: 1px solid #060606; border-bottom: 1px solid #060606;
-          opacity: 0.9; left:64px; width: 20px; height:128px;'>
-      <div style='position:relative; margin: 0px; font-size: 1.2em;
-            border: 1px solid #666; background-color: #FAFAFA;
-            top: -2px; left: -2px; width: 20px; height:128px;'>
-        <span style='top:-1.5em; position: relative; left:26px;
-              border-bottom: 1px solid #666;'>Goal:&nbsp;$35,000</span>
-        <div style='position:absolute; margin:0px;
-              background: #3C3; bottom:0px; width: 20px; height: 5px;'>
-          <span style='position: relative; left:22px; top: -1px;
-                border-top: 1px solid #666;'>&nbsp;&nbsp;$1,420</span>
+  </h3>
+  <div class='piggy-bank'>
+    <div class='progress-bar-borders'>
+      <div class='progress-bar-background'>
+        <div class='goal-text'>Goal: $35,000</div>
+        <div class='progress-bar-filler'>
+          <div class='current-text'>$1,420</div>
         </div>
       </div>
     </div>
   </div>
-  <p style="text-align: center;">
+  <p>
     Updated: January 13th<br />
     &euro;1 = $1.1782<br />
     <a href="http://www.haiku-inc.org/donations.html#online">Submit a Donation</a><br />
-    <a href="http://flattr.com/thing/1335767/Haiku-Inc-" target="_blank"><img src="http://www.haiku-inc.org/images/flattr-badge-large.png" alt="Flattr this" title="Flattr this" border="0" /></a>
+    <a href="http://flattr.com/thing/1335767/Haiku-Inc-" target="_blank">
+      <img src="http://www.haiku-inc.org/images/flattr-badge-large.png" alt="Flattr this" title="Flattr this" border="0" />
+    </a>
   </p>
 </div>
