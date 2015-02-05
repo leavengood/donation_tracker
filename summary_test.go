@@ -7,19 +7,19 @@ import (
 )
 
 //==============================================================================
-// CurrencyCount.GrandTotal
+// CurrencyAmounts.GrandTotal
 //==============================================================================
 
 const eurToUsdRate = 1.25
 
 func TestGrandTotalWithEmptyMap(t *testing.T) {
-	cc := make(CurrencyCount)
+	cc := make(CurrencyAmounts)
 
 	assert.Equal(t, 0, cc.GrandTotal(eurToUsdRate))
 }
 
 func TestGrandTotalWithJustUSD(t *testing.T) {
-	cc := CurrencyCount{
+	cc := CurrencyAmounts{
 		"USD": 34.56,
 	}
 
@@ -27,7 +27,7 @@ func TestGrandTotalWithJustUSD(t *testing.T) {
 }
 
 func TestGrandTotalWithJustUSDAndEUR(t *testing.T) {
-	cc := CurrencyCount{
+	cc := CurrencyAmounts{
 		"USD": 34.56,
 		"EUR": 10.00,
 	}

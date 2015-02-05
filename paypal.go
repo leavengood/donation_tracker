@@ -86,8 +86,8 @@ func (p PayPalTxns) Sort() {
 	sort.Sort(ByDate{p})
 }
 
-func (p PayPalTxns) TotalByCurrency() CurrencyCount {
-	result := make(CurrencyCount)
+func (p PayPalTxns) TotalByCurrency() CurrencyAmounts {
+	result := make(CurrencyAmounts)
 
 	for _, txn := range p {
 		result[txn.CurrencyCode] += txn.Amt

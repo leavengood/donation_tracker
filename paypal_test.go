@@ -10,7 +10,7 @@ import (
 // PayPalTxns.TotalByCurrency
 //==============================================================================
 
-func CallTotalByCurrencyWith(txns ...*PayPalTxn) CurrencyCount {
+func CallTotalByCurrencyWith(txns ...*PayPalTxn) CurrencyAmounts {
 	testing := PayPalTxns{}
 
 	testing = append(testing, txns...)
