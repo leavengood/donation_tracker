@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"strconv"
@@ -15,12 +16,12 @@ type PayPalTxn struct {
 	Type          string
 	Email         string
 	Name          string
-	TransactionID string
+	TransactionID string `json:"transaction_id"`
 	Status        string
 	Amt           float32
-	FeeAmt        float32
-	NetAmt        float32
-	CurrencyCode  string
+	FeeAmt        float32 `json:"fee_amt"`
+	NetAmt        float32 `json:"net_amt"`
+	CurrencyCode  string  `json:"currency_code"`
 }
 
 func NewPayPalTxn(tran map[string]string) *PayPalTxn {
@@ -56,6 +57,11 @@ func (p *PayPalTxn) IsSubscription() bool {
 
 func (p *PayPalTxn) IsDonation() bool {
 	return p.Amt > 0 && p.Type == "Donation"
+}
+
+func (p *PayPalTxn) String() string {
+	return fmt.Sprintf("%s %s <%s> %s, %s %0.02f (%0.02f fee) = %0.02f, %s", p.Timestamp, p.Name, p.Email,
+		p.Type, p.CurrencyCode, p.Amt, p.FeeAmt, p.NetAmt, p.Status)
 }
 
 type PayPalTxns []*PayPalTxn
@@ -96,12 +102,32 @@ func (p PayPalTxns) TotalByCurrency() CurrencyAmounts {
 	return result
 }
 
-func (p PayPalTxns) OnlyDonations() PayPalTxns {
-	result := make(PayPalTxns, 0, len(p))
+func (p PayPalTxns) FilterDonations() (PayPalTxns, PayPalTxns) {
+	donations := make(PayPalTxns, 0, len(p))
+	other := make(PayPalTxns, 0, len(p))
 
 	for _, item := range p {
 		if item.IsDonation() || item.IsSubscription() {
-			result = append(result, item)
+			donations = append(donations, item)
+		} else {
+			other = append(other, item)
+		}
+	}
+
+	return donations, other
+}
+
+func (p PayPalTxns) Summarize() MonthlySummaries {
+	result := make(MonthlySummaries)
+
+	for _, item := range p {
+		_, month, _ := item.Timestamp.Date()
+		summary := result.ForMonth(month)
+
+		if item.IsDonation() {
+			summary.AddOneTime(item.Amt, item.FeeAmt, item.CurrencyCode)
+		} else if item.IsSubscription() {
+			summary.AddSubscription(item.Amt, item.FeeAmt, item.CurrencyCode)
 		}
 	}
 
