@@ -22,8 +22,8 @@ func TestAddWithAllCurrencies(t *testing.T) {
 
 	result := ca.Add(ca2)
 
-	assert.Equal(t, 35.79, result["USD"])
-	assert.Equal(t, 30.00, result["EUR"])
+	assert.Equal(t, float32(35.79), result["USD"])
+	assert.Equal(t, float32(30.00), result["EUR"])
 }
 
 func TestAddWithSomeMissingCurrencies(t *testing.T) {
@@ -36,8 +36,8 @@ func TestAddWithSomeMissingCurrencies(t *testing.T) {
 
 	result := ca.Add(ca2)
 
-	assert.Equal(t, 23.45, result["USD"])
-	assert.Equal(t, 10.00, result["EUR"])
+	assert.Equal(t, float32(23.45), result["USD"])
+	assert.Equal(t, float32(10.00), result["EUR"])
 }
 
 //==============================================================================
@@ -69,7 +69,7 @@ const eurToUsdRate = 1.25
 func TestGrandTotalWithEmptyMap(t *testing.T) {
 	ca := make(CurrencyAmounts)
 
-	assert.Equal(t, 0, ca.GrandTotal(eurToUsdRate))
+	assert.Equal(t, float32(0), ca.GrandTotal(eurToUsdRate))
 }
 
 func TestGrandTotalWithJustUSD(t *testing.T) {
@@ -77,7 +77,7 @@ func TestGrandTotalWithJustUSD(t *testing.T) {
 		"USD": 34.56,
 	}
 
-	assert.Equal(t, 34.56, ca.GrandTotal(eurToUsdRate))
+	assert.Equal(t, float32(34.56), ca.GrandTotal(eurToUsdRate))
 }
 
 func TestGrandTotalWithJustUSDAndEUR(t *testing.T) {
@@ -86,7 +86,7 @@ func TestGrandTotalWithJustUSDAndEUR(t *testing.T) {
 		"EUR": 10.00,
 	}
 
-	assert.Equal(t, 47.06, ca.GrandTotal(eurToUsdRate))
+	assert.Equal(t, float32(47.06), ca.GrandTotal(eurToUsdRate))
 }
 
 //==============================================================================

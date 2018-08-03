@@ -21,7 +21,7 @@ func CallTotalByCurrencyWith(txns ...*PayPalTxn) CurrencyAmounts {
 func TestTotalByCurrencyWithEmptyArray(t *testing.T) {
 	total := CallTotalByCurrencyWith()
 
-	assert.Equal(t, 0, total["USD"])
+	assert.Equal(t, float32(0), total["USD"])
 }
 
 func TestTotalByCurrencyWithOneItem(t *testing.T) {
@@ -29,7 +29,7 @@ func TestTotalByCurrencyWithOneItem(t *testing.T) {
 		&PayPalTxn{Amt: 5.43, CurrencyCode: "USD"},
 	)
 
-	assert.Equal(t, 5.43, total["USD"])
+	assert.Equal(t, float32(5.43), total["USD"])
 }
 
 func TestTotalByCurrencyWithTwoItemsInSameCurrency(t *testing.T) {
@@ -38,7 +38,7 @@ func TestTotalByCurrencyWithTwoItemsInSameCurrency(t *testing.T) {
 		&PayPalTxn{Amt: 1.25, CurrencyCode: "USD"},
 	)
 
-	assert.Equal(t, 6.68, total["USD"])
+	assert.Equal(t, float32(6.68), total["USD"])
 }
 
 func TestTotalByCurrencyWithTwoItemsInDifferentCurrency(t *testing.T) {
@@ -47,8 +47,8 @@ func TestTotalByCurrencyWithTwoItemsInDifferentCurrency(t *testing.T) {
 		&PayPalTxn{Amt: 1.25, CurrencyCode: "EUR"},
 	)
 
-	assert.Equal(t, 5.43, total["USD"])
-	assert.Equal(t, 1.25, total["EUR"])
+	assert.Equal(t, float32(5.43), total["USD"])
+	assert.Equal(t, float32(1.25), total["EUR"])
 }
 
 func TestTotalByCurrencyWithMultipleItemsInDifferentCurrency(t *testing.T) {
@@ -59,60 +59,62 @@ func TestTotalByCurrencyWithMultipleItemsInDifferentCurrency(t *testing.T) {
 		&PayPalTxn{Amt: 1.25, CurrencyCode: "EUR"},
 	)
 
-	assert.Equal(t, 13.32, total["USD"])
-	assert.Equal(t, 3.37, total["EUR"])
+	assert.Equal(t, float32(13.32), total["USD"])
+	assert.Equal(t, float32(3.37), total["EUR"])
 }
 
 //==============================================================================
-// PayPalTxns.OnlyDonations
+// PayPalTxns.FilterDonations
 //==============================================================================
 
-func CallOnlyDonationsWith(txns ...*PayPalTxn) PayPalTxns {
+func CallFilterDonationsWith(txns ...*PayPalTxn) PayPalTxns {
 	testing := PayPalTxns{}
 
 	testing = append(testing, txns...)
 
-	return testing.OnlyDonations()
+	donations, _ := testing.FilterDonations()
+
+	return donations
 }
 
-func TestOnlyDonationsWithEmptyArray(t *testing.T) {
-	assert.Equal(t, 0, len(CallOnlyDonationsWith()))
+func TestFilterDonationsWithEmptyArray(t *testing.T) {
+	assert.Equal(t, 0, len(CallFilterDonationsWith()))
 }
 
-func TestOnlyDonationsWithOneItem(t *testing.T) {
-	result := CallOnlyDonationsWith(
+func TestFilterDonationsWithOneItem(t *testing.T) {
+	result := CallFilterDonationsWith(
 		&PayPalTxn{Amt: 5.43, Type: "Donation"},
 	)
 
 	assert.Equal(t, 1, len(result))
 }
 
-func TestOnlyDonationsWithAPayment(t *testing.T) {
-	result := CallOnlyDonationsWith(
+func TestFilterDonationsWithAPayment(t *testing.T) {
+	result := CallFilterDonationsWith(
 		&PayPalTxn{Amt: -5.43, Type: "Payment"},
 	)
 
 	assert.Equal(t, 0, len(result))
 }
 
-func TestOnlyDonationsWithOneDonationAndOnePayment(t *testing.T) {
-	result := CallOnlyDonationsWith(
+func TestFilterDonationsWithOneDonationAndOnePayment(t *testing.T) {
+	result := CallFilterDonationsWith(
 		&PayPalTxn{Amt: 5.43, Type: "Donation"},
 		&PayPalTxn{Amt: -3.12, Type: "Payment"},
 	)
 
 	assert.Equal(t, 1, len(result))
-	assert.Equal(t, 5.43, result[0].Amt)
+	assert.Equal(t, float32(5.43), result[0].Amt)
 }
 
-func TestOnlyDonationsWithADonationSubscriptionAndPayment(t *testing.T) {
-	result := CallOnlyDonationsWith(
+func TestFilterDonationsWithADonationSubscriptionAndPayment(t *testing.T) {
+	result := CallFilterDonationsWith(
 		&PayPalTxn{Amt: 5.43, Type: "Donation"},
 		&PayPalTxn{Amt: -3.12, Type: "Payment"},
 		&PayPalTxn{Amt: 2.45, Type: "Payment"},
 	)
 
 	assert.Equal(t, 2, len(result))
-	assert.Equal(t, 5.43, result[0].Amt)
-	assert.Equal(t, 2.45, result[1].Amt)
+	assert.Equal(t, float32(5.43), result[0].Amt)
+	assert.Equal(t, float32(2.45), result[1].Amt)
 }
