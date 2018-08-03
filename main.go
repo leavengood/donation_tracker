@@ -79,13 +79,24 @@ func summaryProcess() {
 	}
 
 	// Get the start date for PayPal
-	startDate := fmt.Sprintf("%d-01-01T00:00:00Z", year)
+	currentMonthInt := int(currentMonth)
+	currentMonthToFetch := 1
 	if len(previousSummaries) > 0 {
 		// Start with the month after the latest month in the summaries
-		startDate = fmt.Sprintf("%d-%02d-01T00:00:00Z", year, previousSummaries.LatestMonth()+1)
+		currentMonthToFetch = int(previousSummaries.LatestMonth() + 1)
 	}
 
-	ppts := FetchPayPalTxns(startDate, "")
+	var ppts PayPalTxns
+	if currentMonthInt-currentMonthToFetch > 2 {
+		fmt.Println("We are pretty behind, fetching transactions month by month...")
+		// We are pretty far behind, go month by month
+		for i := currentMonthToFetch; i < currentMonthInt; i++ {
+			ppts = append(ppts, FetchPayPalTxnsForMonth(year, i)...)
+		}
+	} else {
+		startDate := fmt.Sprintf("%d-%02d-01T00:00:00Z", year, currentMonthToFetch)
+		ppts = FetchPayPalTxns(startDate, "")
+	}
 
 	fmt.Printf("There are %v transactions:\n", len(ppts))
 	for _, ppt := range ppts {
