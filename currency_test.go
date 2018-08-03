@@ -16,7 +16,7 @@ func TestGetExchangeRate(t *testing.T) {
 
 	exchangeRateUrl = ts.URL
 
-	rate, err := GetExchangeRate()
+	rate, err := GetExchangeRate("?fake-access-key")
 	if err != nil {
 		t.Errorf("Received unexpected error: %v", err)
 	}

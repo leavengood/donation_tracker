@@ -33,7 +33,10 @@ func (nv NameValues) HasFields(fields []string) bool {
 	return result
 }
 
-const ConfigFile = "config.json"
+const (
+	ConfigFile       = "config.json"
+	FixerIoAccessKey = "FIXER_IO_ACCESS_KEY"
+)
 
 var config NameValues
 
@@ -44,7 +47,7 @@ func init() {
 		log.Fatalf("Could not load config file %v because of error: %v!\n", ConfigFile, err)
 	}
 
-	requiredFields := []string{EndpointKey, UserKey, PasswordKey, SignatureKey}
+	requiredFields := []string{EndpointKey, UserKey, PasswordKey, SignatureKey, FixerIoAccessKey}
 	if !config.HasFields(requiredFields) {
 		log.Fatalf("Required fields %v are missing from %v\n", requiredFields, ConfigFile)
 	}

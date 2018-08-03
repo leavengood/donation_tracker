@@ -149,7 +149,7 @@ func summaryProcess() {
 		fmt.Printf("Total for %s: %.02f\n", currency, amt)
 	}
 
-	eurToUsdRate, err := GetExchangeRate()
+	eurToUsdRate, err := GetExchangeRate(config[FixerIoAccessKey])
 	//eurToUsdRate := float32(1.2436)
 	if err == nil {
 		grandTotal := total.GrandTotal(eurToUsdRate)

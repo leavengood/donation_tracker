@@ -6,7 +6,7 @@ import (
 	"net/http"
 )
 
-const FixerIoUrl = "http://api.fixer.io/latest?symbols=USD"
+const FixerIoUrl = "http://data.fixer.io/api/latest?format=1&symbols=USD&access_key="
 
 type FixerIoResponse struct {
 	Base  string
@@ -16,8 +16,8 @@ type FixerIoResponse struct {
 
 var exchangeRateUrl = FixerIoUrl
 
-func GetExchangeRate() (float32, error) {
-	resp, err := http.Get(exchangeRateUrl)
+func GetExchangeRate(accessKey string) (float32, error) {
+	resp, err := http.Get(exchangeRateUrl+accessKey)
 	if err != nil {
 		return 0, err
 	}
