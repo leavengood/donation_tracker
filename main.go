@@ -63,6 +63,15 @@ func FetchPayPalTxnsForMonth(year, month int) PayPalTxns {
 // - When updating daily, we can show how many donations came in that day.
 
 func summaryProcess() {
+	// Start with this so we fail fast if it has an error
+	eurToUsdRate, err := GetExchangeRate(config.FixerIoAccessKey)
+	if err != nil {
+		log.Fatalf("could not get EUR to USD exchange rate because of error: %v\n", err)
+	}
+	if eurToUsdRate == float32(0) {
+		log.Fatalln("we got a 0 exchange rate from fixer.io, is the access key correct?")
+	}
+
 	year, currentMonth, _ := time.Now().Date()
 
 	// Load previous summaries
@@ -111,12 +120,6 @@ func summaryProcess() {
 	// 	fmt.Printf("Total for %s: %.02f\n", currency, amt)
 	// }
 
-	// eurToUsdRate, err := GetExchangeRate()
-	// //eurToUsdRate := float32(1.2436)
-	// if err == nil {
-	// 	fmt.Printf("Grand Total (at EUR to USD rate of %f): %.02f\n", eurToUsdRate, cc.GrandTotal(eurToUsdRate))
-	// }
-
 	currentSummaries := donations.Summarize()
 	// currentWithExtraTrans := make(MonthlySummaries)
 
@@ -160,17 +163,25 @@ func summaryProcess() {
 		fmt.Printf("Total for %s: %.02f\n", currency, amt)
 	}
 
-	eurToUsdRate, err := GetExchangeRate(config[FixerIoAccessKey])
-	//eurToUsdRate := float32(1.2436)
-	if err == nil {
-		grandTotal := total.GrandTotal(eurToUsdRate)
-		fmt.Printf("Grand Total (at EUR to USD rate of %f): %.02f\n", eurToUsdRate, grandTotal)
-		fmt.Printf("Percentage pixels (from 128): %.02f\n", grandTotal/10000.0*128)
+	grandTotal := total.GrandTotal(eurToUsdRate)
+	fmt.Printf("Grand Total (at EUR to USD rate of %f): %.02f\n", eurToUsdRate, grandTotal)
+	fmt.Printf("Percentage pixels (from 128): %.02f\n", grandTotal/10000.0*128)
+
+	// Update the JSON file
+	err = UploadJson(&DonationSummary{
+		UpdatedAt:      time.Now().UTC(),
+		UsdDonations:   total["USD"],
+		EurDonations:   total["EUR"],
+		EurToUsdRate:   eurToUsdRate,
+		TotalDonations: grandTotal,
+	})
+	if err != nil {
+		log.Fatalln(err)
 	}
 
 	// Do we have more than one month summarized?
 	if len(currentSummaries) > 1 {
-		// XXX: We save the separate transactions when we should just save the PayPal ones...
+		// FIXME: We save the separate transactions when we should just save the PayPal ones...
 		fmt.Printf("Saving summaries for %d months\n", len(currentSummaries)-1)
 		// Then let's merge it with the existing summaries and save to file
 		for month, summary := range currentSummaries {
@@ -188,6 +199,11 @@ var month = flag.Int("month", 0, "Provide a month number for which you want to f
 var year = flag.Int("year", 0, "Provide a year for which you want to fetch fresh data")
 
 func main() {
+	err := LoadConfig()
+	if err != nil {
+		log.Fatalf("could not load config file %v because of error: %v\n", ConfigFile, err)
+	}
+
 	flag.Parse()
 
 	currentYear, currentMonth, _ := time.Now().Date()

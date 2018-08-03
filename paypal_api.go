@@ -11,11 +11,12 @@ const (
 	EndpointKey = "ENDPOINT"
 
 	// Fields needed to make a request
-	MethodKey = "METHOD"
+	MethodKey  = "METHOD"
 	VersionKey = "VERSION"
+
 	// These are security params, provided in the config file
-	UserKey = "USER"
-	PasswordKey = "PWD"
+	UserKey      = "USER"
+	PasswordKey  = "PWD"
 	SignatureKey = "SIGNATURE"
 )
 
@@ -23,15 +24,15 @@ func CallPayPalNvpApi(method string, version string, params NameValues) (string,
 	v := url.Values{}
 	v.Set(MethodKey, method)
 	v.Set(VersionKey, version)
-	v.Set(UserKey, config[UserKey])
-	v.Set(PasswordKey, config[PasswordKey])
-	v.Set(SignatureKey, config[SignatureKey])
+	v.Set(UserKey, config.PayPal.User)
+	v.Set(PasswordKey, config.PayPal.Password)
+	v.Set(SignatureKey, config.PayPal.Signature)
 
-	for name, value := range(params) {
+	for name, value := range params {
 		v.Set(name, value)
 	}
 
-	resp, err := http.PostForm(config[EndpointKey], v)
+	resp, err := http.PostForm(config.PayPal.Endpoint, v)
 	if err != nil {
 		return "", err
 	}

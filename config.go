@@ -2,53 +2,78 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io/ioutil"
-	"log"
+	"strings"
 )
 
-func LoadConfig(filename string) (NameValues, error) {
-	result := make(NameValues)
+type Config struct {
+	// For getting PayPal transations with their NVP API
+	PayPal struct {
+		Endpoint  string `json:"endpoint"`
+		User      string `json:"user"`
+		Password  string `json:"password"`
+		Signature string `json:"signature"`
+	} `json:"paypal"`
 
-	content, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return result, err
-	}
+	// For getting the EUR to USD conversion rate
+	FixerIoAccessKey string `json:"fixer_io_access_key"`
 
-	err = json.Unmarshal(content, &result)
-	if err != nil {
-		return result, err
-	}
-
-	return result, nil
+	// For updating the donations.json file on cdn.haiku-os.org
+	Minio struct {
+		AccessKeyId     string `json:"access_key_id"`
+		SecretAccessKey string `json:"secret_access_key"`
+	} `json:"minio"`
 }
 
-func (nv NameValues) HasFields(fields []string) bool {
-	result := true
+func (c *Config) Validate() error {
+	errorList := []string{}
 
-	for _, field := range fields {
-		_, found := nv[field]
-		result = result && found
+	if c.PayPal.Endpoint == "" {
+		errorList = append(errorList, "no PayPal endpoint was provided")
+	}
+	if c.PayPal.User == "" {
+		errorList = append(errorList, "no PayPal user was provided")
+	}
+	if c.PayPal.Password == "" {
+		errorList = append(errorList, "no PayPal password was provided")
+	}
+	if c.PayPal.Signature == "" {
+		errorList = append(errorList, "no PayPal signature was provided")
 	}
 
-	return result
+	if c.FixerIoAccessKey == "" {
+		errorList = append(errorList, "no Fixer.io access key was provided")
+	}
+
+	if c.Minio.AccessKeyId == "" {
+		errorList = append(errorList, "no Minio access key ID was provided")
+	}
+	if c.Minio.SecretAccessKey == "" {
+		errorList = append(errorList, "no Minio secret access key was provided")
+	}
+
+	if len(errorList) == 0 {
+		return nil
+	}
+
+	return errors.New(strings.Join(errorList, ", "))
 }
 
-const (
-	ConfigFile       = "config.json"
-	FixerIoAccessKey = "FIXER_IO_ACCESS_KEY"
-)
+const ConfigFile = "config.json"
 
-var config NameValues
+var config Config
 
-func init() {
-	var err error
-	config, err = LoadConfig(ConfigFile)
+func LoadConfig() error {
+	content, err := ioutil.ReadFile(ConfigFile)
 	if err != nil {
-		log.Fatalf("Could not load config file %v because of error: %v!\n", ConfigFile, err)
+		return err
 	}
 
-	requiredFields := []string{EndpointKey, UserKey, PasswordKey, SignatureKey, FixerIoAccessKey}
-	if !config.HasFields(requiredFields) {
-		log.Fatalf("Required fields %v are missing from %v\n", requiredFields, ConfigFile)
+	err = json.Unmarshal(content, &config)
+	if err != nil {
+		return err
 	}
+
+	return config.Validate()
 }
