@@ -127,6 +127,13 @@ func (ms MonthlySummaries) LatestMonth() time.Month {
 	return result
 }
 
+func (ms MonthlySummaries) ByMonth(cb func(time.Month, *Summary)) {
+	latest := ms.LatestMonth()
+	for i := time.January; i <= latest; i++ {
+		cb(i, ms[i])
+	}
+}
+
 func (ms MonthlySummaries) Total() *Summary {
 	result := NewSummary()
 

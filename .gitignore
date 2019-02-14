@@ -1,1 +1,3 @@
 config.json
+summaries*.json
+transactions*.csv

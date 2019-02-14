@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -80,6 +81,15 @@ func summaryProcess() {
 	if err != nil {
 		fmt.Printf("Summary file could not be found for %d, will create if needed.\n", year)
 	}
+
+	// previousSummaries.ByMonth(func(month time.Month, summary *Summary) {
+	// 	fmt.Printf("Summary for %s:\n", month)
+	// 	fmt.Println(summary)
+	// })
+	//
+	// fmt.Println(SummaryHTML(previousSummaries, year))
+	//
+	// return
 
 	// Load other transactions
 	transactions, err := TransactionsFromCsv(fmt.Sprintf("transactions-%d.csv", year))
@@ -252,6 +262,8 @@ func main() {
 			fmt.Printf("%s: %v\n", month, summary)
 			fmt.Printf("Gross Total: %v\n", summary.GrossTotal())
 			fmt.Printf("Net Total: %v\n\n", summary.NetTotal())
+			b, _ := json.Marshal(summary)
+			fmt.Println(string(b))
 		}
 		os.Exit(0)
 	}
