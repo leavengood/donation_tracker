@@ -49,10 +49,12 @@ func ParseNvpData(data string) *NvpResult {
 			result.Ack = value
 		} else {
 			field, num := ParseNvpName(name)
-			if _, found := result.List[num]; !found {
-				result.List[num] = make(NameValues)
+			if field != "" {
+				if _, found := result.List[num]; !found {
+					result.List[num] = make(NameValues)
+				}
+				result.List[num][field] = value
 			}
-			result.List[num][field] = value
 		}
 	}
 
