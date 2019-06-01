@@ -12,16 +12,16 @@ import (
 const PayPalDateFormat = "2006-01-02T15:04:05Z"
 
 type PayPalTxn struct {
-	Timestamp     time.Time
-	Type          string
-	Email         string
-	Name          string
-	TransactionID string `json:"transaction_id"`
-	Status        string
-	Amt           float32
-	FeeAmt        float32 `json:"fee_amt"`
-	NetAmt        float32 `json:"net_amt"`
-	CurrencyCode  string  `json:"currency_code"`
+	Timestamp     time.Time `json:"timestamp,omitempty"`
+	Type          string    `json:"type,omitempty"`
+	Email         string    `json:"email,omitempty"`
+	Name          string    `json:"name,omitempty"`
+	TransactionID string    `json:"transaction_id,omitempty"`
+	Status        string    `json:"status,omitempty"`
+	Amt           float32   `json:"amt,omitempty"`
+	FeeAmt        float32   `json:"fee_amt,omitempty"`
+	NetAmt        float32   `json:"net_amt,omitempty"`
+	CurrencyCode  string    `json:"currency_code,omitempty"`
 }
 
 func NewPayPalTxn(tran map[string]string) *PayPalTxn {
@@ -52,7 +52,8 @@ func NewPayPalTxn(tran map[string]string) *PayPalTxn {
 }
 
 func (p *PayPalTxn) IsSubscription() bool {
-	return p.Amt > 0 && p.Type == "Payment"
+	return p.Amt > 0 &&
+		(p.Type == "Payment" || p.Type == "Recurring Payment")
 }
 
 func (p *PayPalTxn) IsDonation() bool {

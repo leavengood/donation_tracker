@@ -10,30 +10,30 @@ import (
 )
 
 func FetchPayPalTxns(startDate, endDate string) PayPalTxns {
-	fmt.Printf("Getting PayPal data from %s\n", startDate)
-	// startDate = "2015-06-01T00:00:00Z"
-	// endDate := "2015-07-01T00:00:00Z"
+	// fmt.Printf("Getting PayPal data from %s\n", startDate)
 	nv := NameValues{"STARTDATE": startDate}
 	if endDate != "" {
 		nv["ENDDATE"] = endDate
 	}
-	// NameValues{"STARTDATE": startDate, "ENDDATE": endDate}
 	data, err := CallPayPalNvpApi("TransactionSearch", "117.0", nv)
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Printf("Data from PayPal: %s\n", data)
 	// ioutil.WriteFile("paypal.nvp", []byte(data), 0700)
 
 	// fileData, _ := ioutil.ReadFile("paypal.nvp")
 	// data := string(fileData)
 
 	nvp := ParseNvpData(data)
+	fmt.Printf("NVP data: %#v\n", nvp)
 
 	if !nvp.Successful() {
 		log.Fatalf("API call was not successful: %v\n", data)
 	}
 
 	ppts := PayPalTxnsFromNvp(nvp)
+	fmt.Printf("PayPal trans from NVP: %#v\n", ppts)
 	ppts.Sort()
 
 	return ppts
@@ -47,6 +47,7 @@ func FetchPayPalTxnsForMonth(year, month int) PayPalTxns {
 	}
 	endDate := fmt.Sprintf("%d-%02d-01T00:00:00Z", year, month+1)
 
+	// TODO: better error handling
 	return FetchPayPalTxns(startDate, endDate)
 }
 
@@ -178,16 +179,16 @@ func summaryProcess() {
 	fmt.Printf("Percentage pixels (from 128): %.02f\n", grandTotal/10000.0*128)
 
 	// Update the JSON file
-	err = UploadJson(&DonationSummary{
-		UpdatedAt:      time.Now().UTC(),
-		UsdDonations:   total["USD"],
-		EurDonations:   total["EUR"],
-		EurToUsdRate:   eurToUsdRate,
-		TotalDonations: grandTotal,
-	})
-	if err != nil {
-		log.Fatalln(err)
-	}
+	// err = UploadJson(&DonationSummary{
+	// 	UpdatedAt:      time.Now().UTC(),
+	// 	UsdDonations:   total["USD"],
+	// 	EurDonations:   total["EUR"],
+	// 	EurToUsdRate:   eurToUsdRate,
+	// 	TotalDonations: grandTotal,
+	// })
+	// if err != nil {
+	// 	log.Fatalln(err)
+	// }
 
 	// Do we have more than one month summarized?
 	if len(currentSummaries) > 1 {
@@ -205,8 +206,13 @@ func summaryProcess() {
 	}
 }
 
+func Colorize(color int, msg string) string {
+	return fmt.Sprintf("\033[%dm%s\033[0m", color, msg)
+}
+
 var month = flag.Int("month", 0, "Provide a month number for which you want to fetch fresh data")
 var year = flag.Int("year", 0, "Provide a year for which you want to fetch fresh data")
+var skipUpload = flag.Bool("skip-upload", false, "Skip uploading the donation summary to the CDN")
 
 func main() {
 	err := LoadConfig()
@@ -216,7 +222,7 @@ func main() {
 
 	flag.Parse()
 
-	currentYear, currentMonth, _ := time.Now().Date()
+	currentYear, currentMonth, _ := time.Now().UTC().Date()
 
 	if *month != 0 {
 		if *year == 0 {
@@ -234,6 +240,14 @@ func main() {
 		fmt.Printf("There are %v transactions:\n", len(ppts))
 		for _, ppt := range ppts {
 			fmt.Println(ppt)
+		}
+
+		// Save to file
+		filename := payPalTxnsFileName(*year, *month)
+		fmt.Printf("Attempting to save %d transactions to file %s\n", len(ppts), filename)
+		err := savePayPalTxnsToFile(filename, ppts)
+		if err != nil {
+			panic(err)
 		}
 
 		donations, other := ppts.FilterDonations()
@@ -268,5 +282,43 @@ func main() {
 		os.Exit(0)
 	}
 	// fmt.Println("Did not get a month")
-	summaryProcess()
+	// summaryProcess()
+	// fm, err := NewPayPalFileManager(2019)
+	// // months, err := loadPayPalFiles("data", 2019)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// fmt.Printf("Found %d months worth of files\n", len(fm.Months))
+	// for month, txns := range fm.Months {
+	// 	fmt.Printf("There are %d transactions for month %d\n", len(txns), month)
+	// }
+	// fmt.Printf("The most recent month is: %d\n", fm.GetLatestMonth())
+	// fmt.Printf("The missing months are: %v\n", fm.GetMissingMonths())
+
+	// Start with this so we fail fast if it has an error
+	eurToUsdRate, err := GetExchangeRate(config.FixerIoAccessKey)
+	if err != nil {
+		log.Fatalf("could not get EUR to USD exchange rate because of error: %v\n", err)
+	}
+	if eurToUsdRate == float32(0) {
+		log.Fatalln("we got a 0 exchange rate from fixer.io, is the access key correct?")
+	}
+
+	ds, err := ProcessYear(currentYear, eurToUsdRate)
+	if err != nil {
+		log.Fatalf("could not process year %d due to error: %v\n", currentYear, err)
+	}
+
+	fmt.Printf("Donation Summary: %#v\n", ds)
+
+	// Update the JSON file
+	if !*skipUpload {
+		fmt.Println("Uploading donation summary...")
+		err = UploadJson(ds)
+		if err != nil {
+			log.Fatalln(err)
+		}
+	} else {
+		fmt.Println("Skipping upload of donation summary")
+	}
 }

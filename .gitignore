@@ -1,3 +1,5 @@
+donation_tracker
 config.json
 summaries*.json
 transactions*.csv
+data/*.json
