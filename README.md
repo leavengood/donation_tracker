@@ -1,23 +1,33 @@
-Haiku Donation Tracker
-======================
+# Haiku Donation Tracker
 
 This is a small project used to automate the tracking of donations to [Haiku](https://www.haiku-os.org).
 Currently donations are primarily received from PayPal, with occasional checks or larger donations
 made directly to the [Haiku, Inc.](http://www.haiku-inc.org) bank account.
 
-This program calls the PayPal NVP (Name Value Pair) API to get a list of transactions. It then
-filters and groups those into one-time and subscription donations and totals then based on currency
-(currently just USD and EUR.) The current EUR to USD exchange rate is gotten from the "fixer.io" API
-and used to convert the EUR donation total into USD to make a grand total. That information is then
-saved into a `donation.json` file which is uploaded to https://cdn.haiku-os.org/haiku-inc.
+This tool has multiple small commands it can perform against the donation information it collects.
 
-Then if a complete months worth of transactions was received it is saved into a running summary file
-by the month, so we don't have to get that months transactions again.
+## Commands
 
-Transaction detailed information is currently not kept, but that might be a nice addition.
+### `update`
 
-Information about subscription creation and cancellation is also received from PayPal but is not
-currently used.
+The default and most important command is `update`, which performs the standard process to update
+the donation meter. This calls the PayPal NVP (Name Value Pair) API to get a list of transactions.
+Those are fetched by the month and saved into JSON files in the data directory. Tthe most recently
+updated month could have a partial list of transactions. The update process determines the most
+recently updated month and ensures that no transactions are missed when fetching new ones.
+
+These saved PayPal transactions are filtered and grouped into one-time and subscription donations and
+then totaled based on currency (currently just USD and EUR.) The current EUR to USD exchange rate is
+fetched from the "fixer.io" API and used to convert the EUR donation total into USD to make a grand
+total. That information is then saved into a `donation.json` file which is uploaded to https://cdn.haiku-os.org/haiku-inc.
+
+The reason transactions are grouped by type of donation (one-time and subscription) is that information
+is intended to be used to update a monthly summary of donations, but that is not done yet.
+
+Information about subscription creation and cancellation is also received from PayPal and is
+printed during the `update` process. This may also be included in the future monthly donation report.
+
+TODO: Document other commands
 
 ## To Build
 
@@ -28,7 +38,7 @@ go build
 ## To Run
 
 ```
-./donation_tracker
+./donation_tracker <command>
 ```
 
 This requires various API credentials in config.json in this format:
