@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/csv"
+	"fmt"
 	"os"
 	"reflect"
 	"strconv"
@@ -50,6 +51,10 @@ func NewTransaction(row []string, headers []string) *Transaction {
 
 func (t *Transaction) NetAmt() float32 {
 	return t.Amt - t.FeeAmt
+}
+
+func (t *Transaction) String() string {
+	return fmt.Sprintf("%s: %s in %s for %0.02f %s", FormatDate(t.Date), t.Name, t.Type, t.Amt, t.CurrencyCode)
 }
 
 func ReadCsv(name string) ([][]string, error) {

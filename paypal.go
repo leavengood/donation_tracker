@@ -61,7 +61,22 @@ func (p *PayPalTxn) IsDonation() bool {
 }
 
 func (p *PayPalTxn) String() string {
-	return fmt.Sprintf("%s %s <%s> %s, %s %0.02f (%0.02f fee) = %0.02f, %s", p.Timestamp, p.Name, p.Email,
+	tsStr := FormatDateTime(p.Timestamp)
+
+	// For subscription changes to display nicely
+	if (p.Type == "Recurring Payment" && p.Amt == 0 && p.FeeAmt == 0) ||
+		p.Type == "Subscription Cancellation" {
+		color := red
+
+		if p.Status == "Created" {
+			color = green
+		}
+
+		return Colorize(color, fmt.Sprintf("%s: %s %s a subscription",
+			tsStr, p.Name, strings.ToLower(p.Status)))
+	}
+
+	return fmt.Sprintf("%s: %s <%s> %s, %s %0.02f (%0.02f fee) = %0.02f, %s", tsStr, p.Name, p.Email,
 		p.Type, p.CurrencyCode, p.Amt, p.FeeAmt, p.NetAmt, p.Status)
 }
 
@@ -129,6 +144,26 @@ func (p PayPalTxns) Summarize() MonthlySummaries {
 			summary.AddOneTime(item.Amt, item.FeeAmt, item.CurrencyCode)
 		} else if item.IsSubscription() {
 			summary.AddSubscription(item.Amt, item.FeeAmt, item.CurrencyCode)
+		}
+	}
+
+	return result
+}
+
+func (p PayPalTxns) Merge(other PayPalTxns) PayPalTxns {
+	result := make(PayPalTxns, 0, len(p)+len(other))
+	tranIDs := map[string]bool{}
+
+	// Add everything in our own list, tracking transaction IDs
+	for _, item := range p {
+		tranIDs[item.TransactionID] = true
+		result = append(result, item)
+	}
+
+	// Add anything new not already in the list
+	for _, item := range other {
+		if _, found := tranIDs[item.TransactionID]; !found {
+			result = append(result, item)
 		}
 	}
 

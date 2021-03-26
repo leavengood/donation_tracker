@@ -32,6 +32,13 @@ func NewPayPalFileManager(year int) (*PayPalFileManager, error) {
 	}, nil
 }
 
+func NewEmptyPayPalFileManager(year int) *PayPalFileManager {
+	return &PayPalFileManager{
+		Year: year,
+		Months: map[int]PayPalTxns{},
+	}
+}
+
 // GetLatestMonth returns the latest month with transactions loaded by this
 // file manager. When managing the current year, this helps determine what new
 // data needs to be fetched from the PayPal API.
@@ -53,7 +60,11 @@ func (p *PayPalFileManager) GetLatestTransaction() *PayPalTxn {
 	txns := p.Months[p.GetLatestMonth()]
 
 	// The transactions should be sorted with the latest last
-	return txns[len(txns) - 1]
+	if len(txns) > 0 {
+		return txns[len(txns) - 1]
+	}
+
+	return nil
 }
 
 // GetExistingMonths will return all months which are currently stored in this

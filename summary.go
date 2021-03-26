@@ -15,7 +15,7 @@ func (ca1 CurrencyAmounts) Add(ca2 CurrencyAmounts) CurrencyAmounts {
 
 	// Be sure to get all the currencies from each map
 	for _, ca := range []CurrencyAmounts{ca1, ca2} {
-		for currency, _ := range ca {
+		for currency := range ca {
 			result[currency] = ca1[currency] + ca2[currency]
 		}
 	}
@@ -38,7 +38,22 @@ func (ca CurrencyAmounts) GrandTotal(eurToUsdRate float32) float32 {
 }
 
 func (ca CurrencyAmounts) String() string {
+	if ca["USD"] > 0 && ca["EUR"] == 0 {
+		return fmt.Sprintf("[USD: %0.02f]", ca["USD"])
+	}
+
+	if ca["USD"] == 0 && ca["EUR"] > 0 {
+		return fmt.Sprintf("[EUR: %0.02f]", ca["EUR"])
+	}
+
 	return fmt.Sprintf("[USD: %0.02f, EUR: %0.02f]", ca["USD"], ca["EUR"])
+}
+
+type Person struct {
+	Name string
+	Email string
+	Total CurrencyAmounts
+	Count int
 }
 
 type Summary struct {
@@ -117,7 +132,7 @@ func (ms MonthlySummaries) LatestMonth() time.Month {
 	result := time.January
 
 	if len(ms) > 0 {
-		for m, _ := range ms {
+		for m := range ms {
 			if m > result {
 				result = m
 			}
