@@ -5,23 +5,20 @@ import (
 	"errors"
 	"io/ioutil"
 	"strings"
+
+	"github.com/leavengood/donation_tracker/paypal"
 )
 
+// Config is the main configuration for the whole program
 type Config struct {
-	// For getting PayPal transations with their NVP API
-	PayPal struct {
-		Endpoint  string `json:"endpoint"`
-		User      string `json:"user"`
-		Password  string `json:"password"`
-		Signature string `json:"signature"`
-	} `json:"paypal"`
+	PayPal *paypal.Config `json:"paypal"`
 
 	// For getting the EUR to USD conversion rate
 	FixerIoAccessKey string `json:"fixer_io_access_key"`
 
 	// For updating the donations.json file on cdn.haiku-os.org
 	Minio struct {
-		AccessKeyId     string `json:"access_key_id"`
+		AccessKeyID     string `json:"access_key_id"`
 		SecretAccessKey string `json:"secret_access_key"`
 	} `json:"minio"`
 }
@@ -46,7 +43,7 @@ func (c *Config) Validate() error {
 		errorList = append(errorList, "no Fixer.io access key was provided")
 	}
 
-	if c.Minio.AccessKeyId == "" {
+	if c.Minio.AccessKeyID == "" {
 		errorList = append(errorList, "no Minio access key ID was provided")
 	}
 	if c.Minio.SecretAccessKey == "" {

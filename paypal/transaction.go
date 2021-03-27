@@ -1,4 +1,4 @@
-package main
+package paypal
 
 import (
 	"fmt"
@@ -7,11 +7,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/leavengood/donation_tracker/util"
 )
 
 const PayPalDateFormat = "2006-01-02T15:04:05Z"
 
-type PayPalTxn struct {
+type Transaction struct {
 	Timestamp     time.Time `json:"timestamp,omitempty"`
 	Type          string    `json:"type,omitempty"`
 	Email         string    `json:"email,omitempty"`
@@ -24,8 +26,8 @@ type PayPalTxn struct {
 	CurrencyCode  string    `json:"currency_code,omitempty"`
 }
 
-func NewPayPalTxn(tran map[string]string) *PayPalTxn {
-	result := new(PayPalTxn)
+func NewTransaction(tran map[string]string) *Transaction {
+	result := new(Transaction)
 
 	elem := reflect.ValueOf(result).Elem()
 
@@ -51,28 +53,28 @@ func NewPayPalTxn(tran map[string]string) *PayPalTxn {
 	return result
 }
 
-func (p *PayPalTxn) IsSubscription() bool {
+func (p *Transaction) IsSubscription() bool {
 	return p.Amt > 0 &&
 		(p.Type == "Payment" || p.Type == "Recurring Payment")
 }
 
-func (p *PayPalTxn) IsDonation() bool {
+func (p *Transaction) IsDonation() bool {
 	return p.Amt > 0 && p.Type == "Donation"
 }
 
-func (p *PayPalTxn) String() string {
-	tsStr := FormatDateTime(p.Timestamp)
+func (p *Transaction) String() string {
+	tsStr := util.FormatDateTime(p.Timestamp)
 
 	// For subscription changes to display nicely
 	if (p.Type == "Recurring Payment" && p.Amt == 0 && p.FeeAmt == 0) ||
 		p.Type == "Subscription Cancellation" {
-		color := red
+		color := util.Red
 
 		if p.Status == "Created" {
-			color = green
+			color = util.Green
 		}
 
-		return Colorize(color, fmt.Sprintf("%s: %s %s a subscription",
+		return util.Colorize(color, fmt.Sprintf("%s: %s %s a subscription",
 			tsStr, p.Name, strings.ToLower(p.Status)))
 	}
 
@@ -80,13 +82,13 @@ func (p *PayPalTxn) String() string {
 		p.Type, p.CurrencyCode, p.Amt, p.FeeAmt, p.NetAmt, p.Status)
 }
 
-type PayPalTxns []*PayPalTxn
+type Transactions []*Transaction
 
-func PayPalTxnsFromNvp(nvp *NvpResult) PayPalTxns {
-	result := make(PayPalTxns, len(nvp.List))
+func TransactionsFromNvp(nvp *NvpResult) Transactions {
+	result := make(Transactions, len(nvp.List))
 
 	for i, item := range nvp.List {
-		result[i] = NewPayPalTxn(item)
+		result[i] = NewTransaction(item)
 		// fmt.Println(result[i])
 	}
 
@@ -95,21 +97,21 @@ func PayPalTxnsFromNvp(nvp *NvpResult) PayPalTxns {
 
 // Sorting
 
-func (p PayPalTxns) Len() int      { return len(p) }
-func (p PayPalTxns) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
+func (p Transactions) Len() int      { return len(p) }
+func (p Transactions) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 
-type ByDate struct{ PayPalTxns }
+type ByDate struct{ Transactions }
 
 func (s ByDate) Less(i, j int) bool {
-	return s.PayPalTxns[i].Timestamp.Before(s.PayPalTxns[j].Timestamp)
+	return s.Transactions[i].Timestamp.Before(s.Transactions[j].Timestamp)
 }
 
-func (p PayPalTxns) Sort() {
+func (p Transactions) Sort() {
 	sort.Sort(ByDate{p})
 }
 
-func (p PayPalTxns) TotalByCurrency() CurrencyAmounts {
-	result := make(CurrencyAmounts)
+func (p Transactions) TotalByCurrency() util.CurrencyAmounts {
+	result := make(util.CurrencyAmounts)
 
 	for _, txn := range p {
 		result[txn.CurrencyCode] += txn.Amt
@@ -118,9 +120,9 @@ func (p PayPalTxns) TotalByCurrency() CurrencyAmounts {
 	return result
 }
 
-func (p PayPalTxns) FilterDonations() (PayPalTxns, PayPalTxns) {
-	donations := make(PayPalTxns, 0, len(p))
-	other := make(PayPalTxns, 0, len(p))
+func (p Transactions) FilterDonations() (Transactions, Transactions) {
+	donations := make(Transactions, 0, len(p))
+	other := make(Transactions, 0, len(p))
 
 	for _, item := range p {
 		if item.IsDonation() || item.IsSubscription() {
@@ -133,8 +135,8 @@ func (p PayPalTxns) FilterDonations() (PayPalTxns, PayPalTxns) {
 	return donations, other
 }
 
-func (p PayPalTxns) Summarize() MonthlySummaries {
-	result := make(MonthlySummaries)
+func (p Transactions) Summarize() util.MonthlySummaries {
+	result := make(util.MonthlySummaries)
 
 	for _, item := range p {
 		_, month, _ := item.Timestamp.Date()
@@ -150,8 +152,8 @@ func (p PayPalTxns) Summarize() MonthlySummaries {
 	return result
 }
 
-func (p PayPalTxns) Merge(other PayPalTxns) PayPalTxns {
-	result := make(PayPalTxns, 0, len(p)+len(other))
+func (p Transactions) Merge(other Transactions) Transactions {
+	result := make(Transactions, 0, len(p)+len(other))
 	tranIDs := map[string]bool{}
 
 	// Add everything in our own list, tracking transaction IDs

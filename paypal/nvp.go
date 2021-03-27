@@ -1,4 +1,4 @@
-package main
+package paypal
 
 import (
 	"net/url"
@@ -26,7 +26,7 @@ func ParseNvpName(name string) (string, int) {
 
 type NameValues map[string]string
 type NvpResult struct {
-	Ack string
+	Ack  string
 	List map[int]NameValues
 }
 
@@ -40,7 +40,7 @@ func ParseNvpData(data string) *NvpResult {
 
 	fields := strings.Split(string(data), "&")
 
-	for _, field := range(fields) {
+	for _, field := range fields {
 		nv := strings.Split(field, "=")
 		name := nv[0]
 		value, _ := url.QueryUnescape(nv[1])

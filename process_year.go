@@ -3,18 +3,14 @@ package main
 import (
 	"fmt"
 	"time"
+
+	"github.com/leavengood/donation_tracker/other"
+	"github.com/leavengood/donation_tracker/paypal"
+	"github.com/leavengood/donation_tracker/util"
 )
 
-func FetchAndSaveMonth(year, month int, fm *PayPalFileManager) error {
-	monthStr := Colorize(green, fmt.Sprintf("%s %d", time.Month(month), year))
-	fmt.Printf("Fetching PayPal transactions for %s...", monthStr)
-	txns := FetchPayPalTxnsForMonth(year, month)
-	fmt.Printf("there are %d transactions, saving to JSON.\n", len(txns))
-	return fm.SaveMonth(month, txns)
-}
-
-func AddTransactions(year int, m MonthlySummaries) {
-	transactions, err := TransactionsFromCsv(fmt.Sprintf("transactions-%d.csv", year))
+func AddTransactions(year int, m util.MonthlySummaries) {
+	transactions, err := other.TransactionsFromCsv(fmt.Sprintf("transactions-%d.csv", year))
 	if err != nil {
 		fmt.Printf("Transaction file could not be found for %d, will assume there are no other transactions.\n", year)
 		return
@@ -23,18 +19,18 @@ func AddTransactions(year int, m MonthlySummaries) {
 	fmt.Printf("Adding %d transactions from CSV to the monthly summaries...\n", len(transactions))
 	for _, t := range transactions {
 		_, month, _ := t.Date.Date()
-		fmt.Printf("    Merging in transaction [%s] to month %s\n", Colorize(green, t.String()), month)
+		fmt.Printf("    Merging in transaction [%s] to month %s\n", util.Colorize(util.Green, t.String()), month)
 		m.ForMonth(month).AddOneTime(t.Amt, t.FeeAmt, t.CurrencyCode)
 	}
 }
 
-func SummarizeYear(year int, eurToUsdRate float32, fm *PayPalFileManager) *DonationSummary {
-	summaries := MonthlySummaries{}
+func SummarizeYear(year int, eurToUsdRate float32, fm *paypal.FileManager) *DonationSummary {
+	summaries := util.MonthlySummaries{}
 	// TODO: Extract this so it can be used for the one month process. Maybe put it into
 	// MonthlySummaries itself.
-	summarizeMonth := func(month time.Month, txns PayPalTxns) {
+	summarizeMonth := func(month time.Month, txns paypal.Transactions) {
 		donations, other := txns.FilterDonations()
-		monthStr := Colorize(blue, fmt.Sprintf("%s %d", month, year))
+		monthStr := util.Colorize(util.Blue, fmt.Sprintf("%s %d", month, year))
 		fmt.Printf("%s: There are %d donations from %d transactions\n",
 			monthStr, len(donations), len(txns))
 		// TODO: Maybe this Summarize in PayPalTxns needs to be moved into
@@ -58,7 +54,7 @@ func SummarizeYear(year int, eurToUsdRate float32, fm *PayPalFileManager) *Donat
 		fmt.Println("")
 	}
 
-	fmt.Printf("%s\n\n", Colorize(green, "Monthly Totals"))
+	fmt.Printf("%s\n\n", util.Colorize(util.Green, "Monthly Totals"))
 
 	// Summarize each month
 	months := fm.GetExistingMonths()
@@ -75,7 +71,7 @@ func SummarizeYear(year int, eurToUsdRate float32, fm *PayPalFileManager) *Donat
 	grossTotal := total.GrossTotal()
 	fmt.Printf("Combined Total: %s\n", grossTotal)
 	grandTotal := grossTotal.GrandTotal(eurToUsdRate)
-	fmt.Println(Colorize(yellow, fmt.Sprintf("Grand Total (at EUR to USD rate of %f): %.02f",
+	fmt.Println(util.Colorize(util.Yellow, fmt.Sprintf("Grand Total (at EUR to USD rate of %f): %.02f",
 		eurToUsdRate, grandTotal)))
 
 	return &DonationSummary{
@@ -90,11 +86,11 @@ func SummarizeYear(year int, eurToUsdRate float32, fm *PayPalFileManager) *Donat
 // ProcessYear will take the provided year and EUR to USD conversion rate and
 // perform the summary process which involves loading current data for the given
 // year, getting any missing data, and then summarizing it all.
-func ProcessYear(year int, eurToUsdRate float32) (*DonationSummary, error) {
+func ProcessYear(client *paypal.Client, year int, eurToUsdRate float32) (*DonationSummary, error) {
 	currentYear, currentMonth, _ := time.Now().UTC().Date()
 
 	// Load current files for the year
-	fm, err := NewPayPalFileManager(year)
+	fm, err := paypal.NewFileManager(year)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +106,7 @@ func ProcessYear(year int, eurToUsdRate float32) (*DonationSummary, error) {
 		// Start from the beginning of this day so we don't miss anything
 		startDate := fmt.Sprintf("%d-%02d-%02dT00:00:00Z", tYear, tMonth, tDay)
 		fmt.Printf("Fetching PayPal transactions newer than: %s\n", startDate)
-		newTxns := FetchPayPalTxns(startDate, getEndDate(tYear, int(tMonth)))
+		newTxns := client.GetTransactions(startDate, paypal.GetEndDate(tYear, int(tMonth)))
 		fmt.Printf("Found %d new transactions\n", len(newTxns))
 		previous := fm.Months[latest]
 		// Merge will remove any duplicates
@@ -142,7 +138,7 @@ func ProcessYear(year int, eurToUsdRate float32) (*DonationSummary, error) {
 
 	// Get missing months from PayPal API and save them
 	for _, month := range missing {
-		if err := FetchAndSaveMonth(year, month, fm); err != nil {
+		if err := client.GetAndSaveMonth(year, month, fm); err != nil {
 			return nil, err
 		}
 	}

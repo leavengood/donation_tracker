@@ -1,17 +1,18 @@
-package main
+package paypal
 
 import (
 	"testing"
 
+	"github.com/leavengood/donation_tracker/util"
 	"github.com/stretchr/testify/assert"
 )
 
 //==============================================================================
-// PayPalTxns.TotalByCurrency
+// TotalByCurrency
 //==============================================================================
 
-func CallTotalByCurrencyWith(txns ...*PayPalTxn) CurrencyAmounts {
-	testing := PayPalTxns{}
+func CallTotalByCurrencyWith(txns ...*Transaction) util.CurrencyAmounts {
+	testing := Transactions{}
 
 	testing = append(testing, txns...)
 
@@ -26,7 +27,7 @@ func TestTotalByCurrencyWithEmptyArray(t *testing.T) {
 
 func TestTotalByCurrencyWithOneItem(t *testing.T) {
 	total := CallTotalByCurrencyWith(
-		&PayPalTxn{Amt: 5.43, CurrencyCode: "USD"},
+		&Transaction{Amt: 5.43, CurrencyCode: "USD"},
 	)
 
 	assert.Equal(t, float32(5.43), total["USD"])
@@ -34,8 +35,8 @@ func TestTotalByCurrencyWithOneItem(t *testing.T) {
 
 func TestTotalByCurrencyWithTwoItemsInSameCurrency(t *testing.T) {
 	total := CallTotalByCurrencyWith(
-		&PayPalTxn{Amt: 5.43, CurrencyCode: "USD"},
-		&PayPalTxn{Amt: 1.25, CurrencyCode: "USD"},
+		&Transaction{Amt: 5.43, CurrencyCode: "USD"},
+		&Transaction{Amt: 1.25, CurrencyCode: "USD"},
 	)
 
 	assert.Equal(t, float32(6.68), total["USD"])
@@ -43,8 +44,8 @@ func TestTotalByCurrencyWithTwoItemsInSameCurrency(t *testing.T) {
 
 func TestTotalByCurrencyWithTwoItemsInDifferentCurrency(t *testing.T) {
 	total := CallTotalByCurrencyWith(
-		&PayPalTxn{Amt: 5.43, CurrencyCode: "USD"},
-		&PayPalTxn{Amt: 1.25, CurrencyCode: "EUR"},
+		&Transaction{Amt: 5.43, CurrencyCode: "USD"},
+		&Transaction{Amt: 1.25, CurrencyCode: "EUR"},
 	)
 
 	assert.Equal(t, float32(5.43), total["USD"])
@@ -53,10 +54,10 @@ func TestTotalByCurrencyWithTwoItemsInDifferentCurrency(t *testing.T) {
 
 func TestTotalByCurrencyWithMultipleItemsInDifferentCurrency(t *testing.T) {
 	total := CallTotalByCurrencyWith(
-		&PayPalTxn{Amt: 5.43, CurrencyCode: "USD"},
-		&PayPalTxn{Amt: 2.12, CurrencyCode: "EUR"},
-		&PayPalTxn{Amt: 7.89, CurrencyCode: "USD"},
-		&PayPalTxn{Amt: 1.25, CurrencyCode: "EUR"},
+		&Transaction{Amt: 5.43, CurrencyCode: "USD"},
+		&Transaction{Amt: 2.12, CurrencyCode: "EUR"},
+		&Transaction{Amt: 7.89, CurrencyCode: "USD"},
+		&Transaction{Amt: 1.25, CurrencyCode: "EUR"},
 	)
 
 	assert.Equal(t, float32(13.32), total["USD"])
@@ -64,11 +65,11 @@ func TestTotalByCurrencyWithMultipleItemsInDifferentCurrency(t *testing.T) {
 }
 
 //==============================================================================
-// PayPalTxns.FilterDonations
+// FilterDonations
 //==============================================================================
 
-func CallFilterDonationsWith(txns ...*PayPalTxn) PayPalTxns {
-	testing := PayPalTxns{}
+func CallFilterDonationsWith(txns ...*Transaction) Transactions {
+	testing := Transactions{}
 
 	testing = append(testing, txns...)
 
@@ -83,7 +84,7 @@ func TestFilterDonationsWithEmptyArray(t *testing.T) {
 
 func TestFilterDonationsWithOneItem(t *testing.T) {
 	result := CallFilterDonationsWith(
-		&PayPalTxn{Amt: 5.43, Type: "Donation"},
+		&Transaction{Amt: 5.43, Type: "Donation"},
 	)
 
 	assert.Equal(t, 1, len(result))
@@ -91,7 +92,7 @@ func TestFilterDonationsWithOneItem(t *testing.T) {
 
 func TestFilterDonationsWithAPayment(t *testing.T) {
 	result := CallFilterDonationsWith(
-		&PayPalTxn{Amt: -5.43, Type: "Payment"},
+		&Transaction{Amt: -5.43, Type: "Payment"},
 	)
 
 	assert.Equal(t, 0, len(result))
@@ -99,8 +100,8 @@ func TestFilterDonationsWithAPayment(t *testing.T) {
 
 func TestFilterDonationsWithOneDonationAndOnePayment(t *testing.T) {
 	result := CallFilterDonationsWith(
-		&PayPalTxn{Amt: 5.43, Type: "Donation"},
-		&PayPalTxn{Amt: -3.12, Type: "Payment"},
+		&Transaction{Amt: 5.43, Type: "Donation"},
+		&Transaction{Amt: -3.12, Type: "Payment"},
 	)
 
 	assert.Equal(t, 1, len(result))
@@ -109,9 +110,9 @@ func TestFilterDonationsWithOneDonationAndOnePayment(t *testing.T) {
 
 func TestFilterDonationsWithADonationSubscriptionAndPayment(t *testing.T) {
 	result := CallFilterDonationsWith(
-		&PayPalTxn{Amt: 5.43, Type: "Donation"},
-		&PayPalTxn{Amt: -3.12, Type: "Payment"},
-		&PayPalTxn{Amt: 2.45, Type: "Payment"},
+		&Transaction{Amt: 5.43, Type: "Donation"},
+		&Transaction{Amt: -3.12, Type: "Payment"},
+		&Transaction{Amt: 2.45, Type: "Payment"},
 	)
 
 	assert.Equal(t, 2, len(result))

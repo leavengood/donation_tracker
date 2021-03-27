@@ -1,48 +1,48 @@
-package main
+package paypal
 
 import (
-	"path/filepath"
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 )
 
 const dataDir = "data"
 
-// PayPalFileManager manages files containing PayPal transactions fetched from
+// FileManager manages files containing PayPal transactions fetched from
 // the PayPal API.
-type PayPalFileManager struct {
-	Year int
-	Months map[int]PayPalTxns
+type FileManager struct {
+	Year   int
+	Months map[int]Transactions
 }
 
-// NewPayPalFileManager will load any PayPal files for the given year from the
+// NewFileManager will load any PayPal files for the given year from the
 // data directory, and can be used to save new transactions there.
-func NewPayPalFileManager(year int) (*PayPalFileManager, error) {
+func NewFileManager(year int) (*FileManager, error) {
 	months, err := loadPayPalFiles(dataDir, year)
 	if err != nil {
 		return nil, err
 	}
 
-	return &PayPalFileManager{
-		Year: year,
+	return &FileManager{
+		Year:   year,
 		Months: months,
 	}, nil
 }
 
-func NewEmptyPayPalFileManager(year int) *PayPalFileManager {
-	return &PayPalFileManager{
-		Year: year,
-		Months: map[int]PayPalTxns{},
+func NewEmptyFileManager(year int) *FileManager {
+	return &FileManager{
+		Year:   year,
+		Months: map[int]Transactions{},
 	}
 }
 
 // GetLatestMonth returns the latest month with transactions loaded by this
 // file manager. When managing the current year, this helps determine what new
 // data needs to be fetched from the PayPal API.
-func (p *PayPalFileManager) GetLatestMonth() int {
+func (p *FileManager) GetLatestMonth() int {
 	max := 0
 
 	for month := range p.Months {
@@ -56,12 +56,12 @@ func (p *PayPalFileManager) GetLatestMonth() int {
 
 // GetLatestTransaction will get the most recent transaction from the most
 // recent month stored in this file manager.
-func (p *PayPalFileManager) GetLatestTransaction() *PayPalTxn {
+func (p *FileManager) GetLatestTransaction() *Transaction {
 	txns := p.Months[p.GetLatestMonth()]
 
 	// The transactions should be sorted with the latest last
 	if len(txns) > 0 {
-		return txns[len(txns) - 1]
+		return txns[len(txns)-1]
 	}
 
 	return nil
@@ -69,7 +69,7 @@ func (p *PayPalFileManager) GetLatestTransaction() *PayPalTxn {
 
 // GetExistingMonths will return all months which are currently stored in this
 // file manager.
-func (p *PayPalFileManager) GetExistingMonths() []int {
+func (p *FileManager) GetExistingMonths() []int {
 	result := []int{}
 
 	for i := 1; i <= 12; i++ {
@@ -83,7 +83,7 @@ func (p *PayPalFileManager) GetExistingMonths() []int {
 
 // GetMissingMonths will return all months which are not currently stored in
 // this file manager.
-func (p *PayPalFileManager) GetMissingMonths() []int {
+func (p *FileManager) GetMissingMonths() []int {
 	result := []int{}
 
 	for i := 1; i <= 12; i++ {
@@ -97,7 +97,7 @@ func (p *PayPalFileManager) GetMissingMonths() []int {
 
 // SaveMonth will save the given transactions to a file for that month, and add
 // these transactions to the Months stored in this manager.
-func (p *PayPalFileManager) SaveMonth(month int, txns PayPalTxns) error {
+func (p *FileManager) SaveMonth(month int, txns Transactions) error {
 	filename := payPalTxnsFileName(p.Year, month)
 	if err := savePayPalTxnsToFile(filename, txns); err != nil {
 		return err
@@ -108,8 +108,8 @@ func (p *PayPalFileManager) SaveMonth(month int, txns PayPalTxns) error {
 	return nil
 }
 
-func loadPayPalFiles(baseDir string, year int) (map[int]PayPalTxns, error) {
-	result := map[int]PayPalTxns{}
+func loadPayPalFiles(baseDir string, year int) (map[int]Transactions, error) {
+	result := map[int]Transactions{}
 
 	re := regexp.MustCompile(fmt.Sprintf(`paypal-%d-([0-9]{2}).json`, year))
 
@@ -143,19 +143,19 @@ func loadPayPalFiles(baseDir string, year int) (map[int]PayPalTxns, error) {
 	return result, nil
 }
 
-// PayPalTxnsJSON is the structure that will be saved to and loaded from files.
-type PayPalTxnsJSON struct {
-	Transactions PayPalTxns `json:"transactions"`
+// TransactionsJSON is the structure that will be saved to and loaded from files.
+type TransactionsJSON struct {
+	Transactions Transactions `json:"transactions"`
 }
 
-func loadPayPalTxnsFromFile(filename string) (PayPalTxns, error) {
+func loadPayPalTxnsFromFile(filename string) (Transactions, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
 
 	dec := json.NewDecoder(f)
-	txnsJSON := PayPalTxnsJSON{}
+	txnsJSON := TransactionsJSON{}
 	if err := dec.Decode(&txnsJSON); err != nil {
 		return nil, err
 	}
@@ -163,14 +163,14 @@ func loadPayPalTxnsFromFile(filename string) (PayPalTxns, error) {
 	return txnsJSON.Transactions, nil
 }
 
-func savePayPalTxnsToFile(filename string, txns PayPalTxns) error {
+func savePayPalTxnsToFile(filename string, txns Transactions) error {
 	f, err := os.Create(filename)
 	if err != nil {
 		return err
 	}
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
-	txnsJSON := PayPalTxnsJSON{Transactions: txns}
+	txnsJSON := TransactionsJSON{Transactions: txns}
 
 	return enc.Encode(&txnsJSON)
 }

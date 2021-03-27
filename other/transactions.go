@@ -1,4 +1,4 @@
-package main
+package other
 
 import (
 	"encoding/csv"
@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strconv"
 	"time"
+
+	"github.com/leavengood/donation_tracker/util"
 )
 
 const CsvDateFormat = "2006-01-02"
@@ -54,7 +56,7 @@ func (t *Transaction) NetAmt() float32 {
 }
 
 func (t *Transaction) String() string {
-	return fmt.Sprintf("%s: %s in %s for %0.02f %s", FormatDate(t.Date), t.Name, t.Type, t.Amt, t.CurrencyCode)
+	return fmt.Sprintf("%s: %s in %s for %0.02f %s", util.FormatDate(t.Date), t.Name, t.Type, t.Amt, t.CurrencyCode)
 }
 
 func ReadCsv(name string) ([][]string, error) {
