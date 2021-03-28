@@ -178,13 +178,13 @@ func main() {
 			exit(fmt.Sprintf("Error: could not load PayPal files for year %d: %v\n", year, err), 1)
 		}
 
-		people := map[string]*util.Person{}
+		peopleMap := map[string]*util.Person{}
 		for _, txns := range fm.Months {
 			for _, t := range txns {
 				if t.IsDonation() || t.IsSubscription() {
 					// key := fmt.Sprintf("%s <%s>", t.Name, t.Email)
 					key := t.Email
-					person, found := people[key]
+					person, found := peopleMap[key]
 					if !found {
 						person = &util.Person{
 							Name:  t.Name,
@@ -192,13 +192,19 @@ func main() {
 							Total: util.CurrencyAmounts{},
 							Count: 0,
 						}
-						people[key] = person
+						peopleMap[key] = person
 					}
 					person.Total[t.CurrencyCode] += t.Amt
 					person.Count++
 				}
 			}
 		}
+
+		people := make(util.People, 0, len(peopleMap))
+		for _, person := range peopleMap {
+			people = append(people, person)
+		}
+		people.Sort()
 
 		fmt.Printf("There were donations from %d people:\n", len(people))
 		for _, person := range people {

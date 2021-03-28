@@ -7,13 +7,6 @@ import (
 	"time"
 )
 
-type Person struct {
-	Name  string
-	Email string
-	Total CurrencyAmounts
-	Count int
-}
-
 type Summary struct {
 	OneTimeAmt        CurrencyAmounts
 	OneTimeCount      int
