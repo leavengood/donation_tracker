@@ -32,6 +32,11 @@ Commands:
         numeric month and optionally a year. The default year is the current
         year. Overwrites any existing data.
 
+    donors [-year int]
+        Collect information for donors in the given year, defaulting to the
+        current year, and print out their name, email, how much and how many
+        times they have donated, in descending order of donation amount.
+
     help
         Show this usage.
 
@@ -172,7 +177,7 @@ func main() {
 			exit(fmt.Sprintf("Error: could not save transactions: %s", err), 1)
 		}
 
-	case "personal":
+	case "donors":
 		fm, err := paypal.NewFileManager(year)
 		if err != nil {
 			exit(fmt.Sprintf("Error: could not load PayPal files for year %d: %v\n", year, err), 1)
@@ -212,6 +217,7 @@ func main() {
 				util.Colorize(util.Yellow, fmt.Sprintf("%s <%s>", person.Name, person.Email)),
 				person.Total, person.Count)
 		}
+
 	default:
 		fmt.Printf("Error: Unknown command %s.\n\n", cmd)
 		exit(fmt.Sprintf(usage, args[0]), 1)
