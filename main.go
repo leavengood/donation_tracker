@@ -72,8 +72,8 @@ func main() {
 	flagSet.IntVar(&year, "year", currentYear, "Specifies the year to operate on")
 	month := int(currentMonth)
 	flagSet.IntVar(&month, "month", int(currentMonth), "Specifies the month to operate on")
-	skipUpload := false
-	flagSet.BoolVar(&skipUpload, "skip-upload", false, "Skip uploading data to the server on the 'update' command")
+	skipUpload := flagSet.Bool("skip-upload", false, "Skip uploading data to the server on the 'update' command")
+	emails := flagSet.Bool("emails", false, "Print only emails in the 'donors' command")
 
 	printUsage := func() {
 		fmt.Println(fmt.Sprintf(usage, exe))
@@ -118,10 +118,8 @@ func main() {
 		os.Exit(0)
 
 	case "update":
-		fmt.Printf("Would update with year %d, month %d and skip-upload: %t\n", year, month, skipUpload)
-
 		extraMsg := ""
-		if skipUpload {
+		if *skipUpload {
 			extraMsg = ", skipping upload of data."
 		}
 
@@ -138,7 +136,7 @@ func main() {
 		fmt.Printf("Donation Summary: %#v\n", ds)
 
 		// Update the JSON file, if this is the current year and the skip flag was not set
-		if year == currentYear && !skipUpload {
+		if year == currentYear && !*skipUpload {
 			fmt.Printf("%s Uploading donation summary...\n", blueArrow)
 			err = UploadJson(ds)
 			if err != nil {
@@ -182,40 +180,53 @@ func main() {
 		if err != nil {
 			exit(fmt.Sprintf("Error: could not load PayPal files for year %d: %v\n", year, err), 1)
 		}
+		config, err := util.LoadDonorConfig()
+		if err != nil {
+			exit(fmt.Sprintf("Error: could not load the donor config file: %v\n", err), 1)
+		}
 
-		peopleMap := map[string]*util.Person{}
+		donorMap := map[string]*util.Donor{}
 		for _, txns := range fm.Months {
 			for _, t := range txns {
 				if t.IsDonation() || t.IsSubscription() {
-					// key := fmt.Sprintf("%s <%s>", t.Name, t.Email)
 					key := t.Email
-					person, found := peopleMap[key]
+					donor, found := donorMap[key]
 					if !found {
-						person = &util.Person{
+						donor = &util.Donor{
 							Name:  t.Name,
 							Email: t.Email,
 							Total: util.CurrencyAmounts{},
 							Count: 0,
 						}
-						peopleMap[key] = person
+						// Correct their name or set the anoymous flag
+						config.Handle(donor)
+						donorMap[key] = donor
 					}
-					person.Total[t.CurrencyCode] += t.Amt
-					person.Count++
+					donor.Total[t.CurrencyCode] += t.Amt
+					donor.Count++
 				}
 			}
 		}
 
-		people := make(util.People, 0, len(peopleMap))
-		for _, person := range peopleMap {
-			people = append(people, person)
+		donors := make(util.Donors, 0, len(donorMap))
+		for _, person := range donorMap {
+			donors = append(donors, person)
 		}
-		people.Sort()
+		donors.Sort()
 
-		fmt.Printf("There were donations from %d people:\n", len(people))
-		for _, person := range people {
-			fmt.Printf("  %s: %s (%d)\n",
-				util.Colorize(util.Yellow, fmt.Sprintf("%s <%s>", person.Name, person.Email)),
-				person.Total, person.Count)
+		fmt.Printf("There were donations from %d donors:\n", len(donors))
+		for _, person := range donors {
+			if *emails {
+				fmt.Println(person.Email)
+			} else {
+				anon := ""
+				if person.Anonymous {
+					anon = util.Colorize(util.BrightYellow, "{Wishes to be Anonymous}")
+				}
+				fmt.Printf("  %s: %s (%d) %s\n",
+					util.Colorize(util.Yellow, fmt.Sprintf("%s <%s>", person.Name, person.Email)),
+					person.Total, person.Count, anon)
+			}
 		}
 
 	default:
