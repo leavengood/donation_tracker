@@ -42,6 +42,48 @@ Commands:
 
 A config file named config.json should be defined as described in the README.`
 
+func donorInfo(year int) (util.Donors, error) {
+	fm, err := paypal.NewFileManager(year)
+	if err != nil {
+		return nil, fmt.Errorf("could not load PayPal files for year %d: %w", year, err)
+	}
+	config, err := util.LoadDonorConfig()
+	if err != nil {
+		return nil, fmt.Errorf("could not load the donor config file: %w", err)
+	}
+
+	donorMap := map[string]*util.Donor{}
+	for _, txns := range fm.Months {
+		for _, t := range txns {
+			if t.IsDonation() || t.IsSubscription() {
+				key := t.Email
+				donor, found := donorMap[key]
+				if !found {
+					donor = &util.Donor{
+						Name:  t.Name,
+						Email: t.Email,
+						Total: util.CurrencyAmounts{},
+						Count: 0,
+					}
+					// Correct their name or set the anoymous flag
+					config.Handle(donor)
+					donorMap[key] = donor
+				}
+				donor.Total[t.CurrencyCode] += t.Amt
+				donor.Count++
+			}
+		}
+	}
+
+	donors := make(util.Donors, 0, len(donorMap))
+	for _, person := range donorMap {
+		donors = append(donors, person)
+	}
+	donors.Sort()
+
+	return donors, nil
+}
+
 func main() {
 	exit := func(msg string, exitCode int) {
 		fmt.Println(msg)
@@ -176,43 +218,10 @@ func main() {
 		}
 
 	case "donors":
-		fm, err := paypal.NewFileManager(year)
+		donors, err := donorInfo(year)
 		if err != nil {
-			exit(fmt.Sprintf("Error: could not load PayPal files for year %d: %v\n", year, err), 1)
+			exit(err.Error(), 1)
 		}
-		config, err := util.LoadDonorConfig()
-		if err != nil {
-			exit(fmt.Sprintf("Error: could not load the donor config file: %v\n", err), 1)
-		}
-
-		donorMap := map[string]*util.Donor{}
-		for _, txns := range fm.Months {
-			for _, t := range txns {
-				if t.IsDonation() || t.IsSubscription() {
-					key := t.Email
-					donor, found := donorMap[key]
-					if !found {
-						donor = &util.Donor{
-							Name:  t.Name,
-							Email: t.Email,
-							Total: util.CurrencyAmounts{},
-							Count: 0,
-						}
-						// Correct their name or set the anoymous flag
-						config.Handle(donor)
-						donorMap[key] = donor
-					}
-					donor.Total[t.CurrencyCode] += t.Amt
-					donor.Count++
-				}
-			}
-		}
-
-		donors := make(util.Donors, 0, len(donorMap))
-		for _, person := range donorMap {
-			donors = append(donors, person)
-		}
-		donors.Sort()
 
 		fmt.Printf("There were donations from %d donors:\n", len(donors))
 		for _, person := range donors {
@@ -228,6 +237,25 @@ func main() {
 					person.Total, person.Count, anon)
 			}
 		}
+
+	case "donor-thanks":
+		donors, err := donorInfo(year)
+		if err != nil {
+			exit(err.Error(), 1)
+		}
+
+		fmt.Printf("## Donor Thanks for %d\n", year)
+
+		anonCount := 0
+		for _, donor := range donors {
+			if donor.Anonymous {
+				anonCount++
+				continue
+			}
+			fmt.Printf("* %s\n", donor.Name)
+		}
+
+		fmt.Printf("\nThere were %d donors who wished to remain anonymous.", anonCount)
 
 	default:
 		fmt.Printf("Error: Unknown command %s.\n\n", cmd)
