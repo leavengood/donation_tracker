@@ -16,7 +16,7 @@ type DonationSummary struct {
 	TotalDonations float32   `json:"total_donations"`
 }
 
-const minioHost = "cdn.haiku-os.org"
+const minioHost = "s3.us-west-1.wasabisys.com"
 
 func UploadJson(summary *DonationSummary) error {
 	accessKeyID := config.Minio.AccessKeyID
