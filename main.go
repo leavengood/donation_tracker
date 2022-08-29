@@ -1,272 +1,264 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"time"
+
+	"github.com/leavengood/donation_tracker/paypal"
+	"github.com/leavengood/donation_tracker/util"
 )
 
-func FetchPayPalTxns(startDate, endDate string) PayPalTxns {
-	fmt.Printf("Getting PayPal data from %s\n", startDate)
-	// startDate = "2015-06-01T00:00:00Z"
-	// endDate := "2015-07-01T00:00:00Z"
-	nv := NameValues{"STARTDATE": startDate}
-	if endDate != "" {
-		nv["ENDDATE"] = endDate
-	}
-	// NameValues{"STARTDATE": startDate, "ENDDATE": endDate}
-	data, err := CallPayPalNvpApi("TransactionSearch", "117.0", nv)
+const usage = `
+Usage: %s [command]
+
+If no command is given, the default command of "update" is performed for the
+current year.
+
+Commands:
+    update [-year int] [-skip-upload]
+        Update the donation information for the given year, defaulting to the
+        current year. Summary information is uploaded as JSON to the Haiku CDN
+        for the current year only unless the --skip-upload flag is provided.
+
+    summarize [-year int]
+        Provide a summary of a given year, defaulting to the current year. No
+        new data is downloaded.
+
+    fetch <-month int> [-year int]
+        Fetch and save a single month of transactions from PayPal given a
+        numeric month and optionally a year. The default year is the current
+        year. Overwrites any existing data.
+
+    donors [-year int]
+        Collect information for donors in the given year, defaulting to the
+        current year, and print out their name, email, how much and how many
+        times they have donated, in descending order of donation amount.
+
+    help
+        Show this usage.
+
+A config file named config.json should be defined as described in the README.`
+
+func donorInfo(year int) (util.Donors, error) {
+	fm, err := paypal.NewFileManager(year)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("could not load PayPal files for year %d: %w", year, err)
 	}
-	// ioutil.WriteFile("paypal.nvp", []byte(data), 0700)
-
-	// fileData, _ := ioutil.ReadFile("paypal.nvp")
-	// data := string(fileData)
-
-	nvp := ParseNvpData(data)
-
-	if !nvp.Successful() {
-		log.Fatalf("API call was not successful: %v\n", data)
-	}
-
-	ppts := PayPalTxnsFromNvp(nvp)
-	ppts.Sort()
-
-	return ppts
-}
-
-func FetchPayPalTxnsForMonth(year, month int) PayPalTxns {
-	startDate := fmt.Sprintf("%d-%02d-01T00:00:00Z", year, month)
-	if month == 12 {
-		year += 1
-		month = 0
-	}
-	endDate := fmt.Sprintf("%d-%02d-01T00:00:00Z", year, month+1)
-
-	return FetchPayPalTxns(startDate, endDate)
-}
-
-// TODO:
-// - Make a command to get totals for each month fresh from PayPal.
-// - Make a command to show a summary.
-// - Create a String() method for PayPal transations so they look nicer in the shell.
-// - Make small command-line program to update the donation meter in the Haiku
-//   website database based on command-line arguments. This can be used from ssh.
-// - Add code to create the donation_meter.txt in the haiku-inc.org site.
-// - Make the summarizing more robust, so as not to accidentally increase when
-//   we shouldn't (like what happened with June.)
-// - Create monthly summary tables.
-// - It would be nice to track subscription creation and cancellation.
-// - When updating daily, we can show how many donations came in that day.
-
-func summaryProcess() {
-	// Start with this so we fail fast if it has an error
-	eurToUsdRate, err := GetExchangeRate(config.FixerIoAccessKey)
+	config, err := util.LoadDonorConfig()
 	if err != nil {
-		log.Fatalf("could not get EUR to USD exchange rate because of error: %v\n", err)
-	}
-	if eurToUsdRate == float32(0) {
-		log.Fatalln("we got a 0 exchange rate from fixer.io, is the access key correct?")
+		return nil, fmt.Errorf("could not load the donor config file: %w", err)
 	}
 
-	year, currentMonth, _ := time.Now().Date()
-
-	// Load previous summaries
-	summariesPrefix := fmt.Sprintf("summaries-%d", year)
-	previousSummaries, err := LoadSummaries(summariesPrefix)
-	if err != nil {
-		fmt.Printf("Summary file could not be found for %d, will create if needed.\n", year)
-	}
-
-	// previousSummaries.ByMonth(func(month time.Month, summary *Summary) {
-	// 	fmt.Printf("Summary for %s:\n", month)
-	// 	fmt.Println(summary)
-	// })
-	//
-	// fmt.Println(SummaryHTML(previousSummaries, year))
-	//
-	// return
-
-	// Load other transactions
-	transactions, err := TransactionsFromCsv(fmt.Sprintf("transactions-%d.csv", year))
-	if err != nil {
-		fmt.Printf("Transaction file could not be found for %d, will assume there are no other transactions.\n", year)
-	}
-
-	// Get the start date for PayPal
-	currentMonthInt := int(currentMonth)
-	currentMonthToFetch := 1
-	if len(previousSummaries) > 0 {
-		// Start with the month after the latest month in the summaries
-		currentMonthToFetch = int(previousSummaries.LatestMonth() + 1)
-	}
-
-	var ppts PayPalTxns
-	if currentMonthInt-currentMonthToFetch > 2 {
-		fmt.Println("We are pretty behind, fetching transactions month by month...")
-		// We are pretty far behind, go month by month
-		for i := currentMonthToFetch; i < currentMonthInt; i++ {
-			ppts = append(ppts, FetchPayPalTxnsForMonth(year, i)...)
-		}
-	} else {
-		startDate := fmt.Sprintf("%d-%02d-01T00:00:00Z", year, currentMonthToFetch)
-		ppts = FetchPayPalTxns(startDate, "")
-	}
-
-	fmt.Printf("There are %v transactions:\n", len(ppts))
-	for _, ppt := range ppts {
-		fmt.Println(ppt)
-	}
-
-	donations, _ := ppts.FilterDonations()
-	fmt.Printf("There are %v donations\n", len(donations))
-
-	// cc := donations.TotalByCurrency()
-	// for currency, amt := range cc {
-	// 	fmt.Printf("Total for %s: %.02f\n", currency, amt)
-	// }
-
-	currentSummaries := donations.Summarize()
-	// currentWithExtraTrans := make(MonthlySummaries)
-
-	for month, summary := range currentSummaries {
-		fmt.Printf("%s: %v\n", month, summary)
-		fmt.Printf("Gross Total: %v\n", summary.GrossTotal())
-		fmt.Printf("Net Total: %v\n\n", summary.NetTotal())
-		// sCopy := *summary
-		// currentWithExtraTrans[month] = &sCopy
-	}
-
-	// Merge in other transactions for current months
-	for _, t := range transactions {
-		_, month, _ := t.Date.Date()
-		if summary, ok := currentSummaries[month]; ok {
-			fmt.Printf("Merging in transaction %v\n", t)
-			summary.AddOneTime(t.Amt, t.FeeAmt, t.CurrencyCode)
-		}
-	}
-
-	// for _, t := range transactions {
-	// 	fmt.Printf("Merging in transaction %v\n", t)
-	// 	_, month, _ := t.Date.Date()
-	// 	if summary, ok := previousSummaries[month]; ok {
-	// 		fmt.Printf("Summary for month %d before: %v\n", month, summary)
-	// 		summary.AddOneTime(t.Amt, t.FeeAmt, t.CurrencyCode)
-	// 		fmt.Printf("Summary for month %d after: %v\n\n", month, summary)
-	// 	} else if summary, ok := currentWithExtraTrans[month]; ok {
-	// 		// TODO: Remove duplication!
-	// 		fmt.Printf("Summary for month %d before: %v\n", month, summary)
-	// 		summary.AddOneTime(t.Amt, t.FeeAmt, t.CurrencyCode)
-	// 		fmt.Printf("Summary for month %d after: %v\n\n", month, summary)
-	// 	}
-	// }
-
-	fmt.Printf("Previous: %v, Gross Total: %s\n", previousSummaries.Total(), previousSummaries.Total().GrossTotal())
-	fmt.Printf("Current: %v, Gross Total: %s\n", currentSummaries.Total(), currentSummaries.Total().GrossTotal())
-	total := previousSummaries.Total().GrossTotal().Add(currentSummaries.Total().GrossTotal())
-	// cc := donations.TotalByCurrency()
-	for currency, amt := range total {
-		fmt.Printf("Total for %s: %.02f\n", currency, amt)
-	}
-
-	grandTotal := total.GrandTotal(eurToUsdRate)
-	fmt.Printf("Grand Total (at EUR to USD rate of %f): %.02f\n", eurToUsdRate, grandTotal)
-	fmt.Printf("Percentage pixels (from 128): %.02f\n", grandTotal/10000.0*128)
-
-	// Update the JSON file
-	err = UploadJson(&DonationSummary{
-		UpdatedAt:      time.Now().UTC(),
-		UsdDonations:   total["USD"],
-		EurDonations:   total["EUR"],
-		EurToUsdRate:   eurToUsdRate,
-		TotalDonations: grandTotal,
-	})
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	// Do we have more than one month summarized?
-	if len(currentSummaries) > 1 {
-		// FIXME: We save the separate transactions when we should just save the PayPal ones...
-		fmt.Printf("Saving summaries for %d months\n", len(currentSummaries)-1)
-		// Then let's merge it with the existing summaries and save to file
-		for month, summary := range currentSummaries {
-			// Don't save the current month
-			if month != currentMonth {
-				fmt.Printf("Saving summary for month %s: %s\n", month, summary)
-				previousSummaries[month] = summary
+	donorMap := map[string]*util.Donor{}
+	for _, txns := range fm.Months {
+		for _, t := range txns {
+			if t.IsDonation() || t.IsSubscription() {
+				key := t.Email
+				donor, found := donorMap[key]
+				if !found {
+					donor = &util.Donor{
+						Name:  t.Name,
+						Email: t.Email,
+						Total: util.CurrencyAmounts{},
+						Count: 0,
+					}
+					// Correct their name or set the anoymous flag
+					config.Handle(donor)
+					donorMap[key] = donor
+				}
+				donor.Total[t.CurrencyCode] += t.Amt
+				donor.Count++
 			}
 		}
-		previousSummaries.Save(summariesPrefix)
 	}
+
+	donors := make(util.Donors, 0, len(donorMap))
+	for _, person := range donorMap {
+		donors = append(donors, person)
+	}
+	donors.Sort()
+
+	return donors, nil
 }
 
-var month = flag.Int("month", 0, "Provide a month number for which you want to fetch fresh data")
-var year = flag.Int("year", 0, "Provide a year for which you want to fetch fresh data")
-
 func main() {
+	exit := func(msg string, exitCode int) {
+		fmt.Println(msg)
+		os.Exit(exitCode)
+	}
+
 	err := LoadConfig()
 	if err != nil {
-		log.Fatalf("could not load config file %v because of error: %v\n", ConfigFile, err)
+		exit(fmt.Sprintf("Could not load config file %v because of error: %v\n", ConfigFile, err), 1)
 	}
 
-	flag.Parse()
-
-	currentYear, currentMonth, _ := time.Now().Date()
-
-	if *month != 0 {
-		if *year == 0 {
-			*year = currentYear
+	// Default command is update
+	exe := os.Args[0]
+	cmd := "update"
+	args := os.Args[1:]
+	if len(args) > 0 {
+		// This could be a flag for the default command of update
+		if args[0][0] != '-' {
+			cmd = args[0]
+			args = args[1:]
 		}
+	}
 
-		if *year == currentYear && (*month < 1 || *month > int(currentMonth)) {
-			fmt.Printf("Please choose a month between 1 and %d\n", currentMonth)
-			os.Exit(1)
+	currentYear, currentMonth, _ := time.Now().UTC().Date()
+
+	flagSet := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
+	year := currentYear
+	flagSet.IntVar(&year, "year", currentYear, "Specifies the year to operate on")
+	month := int(currentMonth)
+	flagSet.IntVar(&month, "month", int(currentMonth), "Specifies the month to operate on")
+	skipUpload := flagSet.Bool("skip-upload", false, "Skip uploading data to the server on the 'update' command")
+	emails := flagSet.Bool("emails", false, "Print only emails in the 'donors' command")
+
+	printUsage := func() {
+		fmt.Println(fmt.Sprintf(usage, exe))
+		fmt.Println("\nSupported flags:")
+		flagSet.PrintDefaults()
+	}
+	flagSet.Usage = printUsage
+	flagSet.Parse(args)
+
+	introPrint := func(msg string) {
+		fmt.Printf("%s %s...\n\n", util.Colorize(util.Green, "✷"), msg)
+	}
+
+	greenCheck := util.Colorize(util.Green, "✓")
+	blueArrow := util.Colorize(util.Blue, "❯")
+
+	getExchangeRate := func() float32 {
+		fmt.Print("Fetching exchange rate for EUR to USD...")
+		rate, err := GetExchangeRate(config.FixerIoAccessKey)
+		if err != nil {
+			exit(fmt.Sprintf("Error: could not get EUR to USD exchange rate: %v", err), 1)
 		}
-
-		fmt.Printf("You chose month %d and year %d\n", *month, *year)
-		ppts := FetchPayPalTxnsForMonth(*year, *month)
-
-		fmt.Printf("There are %v transactions:\n", len(ppts))
-		for _, ppt := range ppts {
-			fmt.Println(ppt)
+		if rate == float32(0) {
+			exit("Error: we got a 0 exchange rate from fixer.io, is the access key correct?", 1)
 		}
+		fmt.Printf("got rate of %f.\n\n", rate)
+		return rate
+	}
 
-		donations, other := ppts.FilterDonations()
-		fmt.Printf("\n\nThere are %v donations:\n", len(donations))
-		for _, ppt := range donations {
-			fmt.Println(ppt)
-		}
-		fmt.Printf("\n\nThere are %v other transactions:\n", len(other))
-		for _, ppt := range other {
-			fmt.Println(ppt)
-		}
+	// Sanity check the year
+	if year < 2010 || year > currentYear {
+		exit(fmt.Sprintf("Error: Please provide a year between 2010 and %d", currentYear), 1)
+	}
 
-		// cc := donations.TotalByCurrency()
-		// for currency, amt := range cc {
-		// 	fmt.Printf("Total for %s: %.02f\n", currency, amt)
-		// }
+	util.PrintLogo()
 
-		// eurToUsdRate, err := GetExchangeRate()
-		// //eurToUsdRate := float32(1.2436)
-		// if err == nil {
-		// 	fmt.Printf("Grand Total (at EUR to USD rate of %f): %.02f\n", eurToUsdRate, cc.GrandTotal(eurToUsdRate))
-		// }
+	client := paypal.NewClient(config.PayPal)
 
-		currentSummaries := donations.Summarize()
-		for month, summary := range currentSummaries {
-			fmt.Printf("%s: %v\n", month, summary)
-			fmt.Printf("Gross Total: %v\n", summary.GrossTotal())
-			fmt.Printf("Net Total: %v\n\n", summary.NetTotal())
-			b, _ := json.Marshal(summary)
-			fmt.Println(string(b))
-		}
+	switch cmd {
+	case "help":
+		printUsage()
 		os.Exit(0)
+
+	case "update":
+		extraMsg := ""
+		if *skipUpload {
+			extraMsg = ", skipping upload of data."
+		}
+
+		introPrint(fmt.Sprintf("Updating donation information for %d%s", year, extraMsg))
+
+		// Start with this so we fail fast if it has an error
+		eurToUsdRate := getExchangeRate()
+
+		ds, err := ProcessYear(client, year, eurToUsdRate)
+		if err != nil {
+			exit(fmt.Sprintf("Error: could not process year %d: %v\n", year, err), 1)
+		}
+
+		fmt.Printf("Donation Summary: %#v\n", ds)
+
+		// Update the JSON file, if this is the current year and the skip flag was not set
+		if year == currentYear && !*skipUpload {
+			fmt.Printf("%s Uploading donation summary...\n", blueArrow)
+			err = UploadJson(ds)
+			if err != nil {
+				log.Fatalln(err)
+			}
+		}
+
+		fmt.Printf("\n%s Update complete!\n", greenCheck)
+
+	case "summarize":
+		fm, err := paypal.NewFileManager(year)
+		if err != nil {
+			exit(fmt.Sprintf("Error: could not load PayPal files for year %d: %v\n", year, err), 1)
+		}
+		latest := fm.GetLatestTransaction()
+		if latest != nil {
+			introPrint(fmt.Sprintf("The latest transaction is from %s", util.FormatDate(latest.Timestamp)))
+		} else {
+			introPrint(fmt.Sprintf("There does not seem to be any PayPal transactions for %d", year))
+		}
+
+		SummarizeYear(year, getExchangeRate(), fm)
+
+	case "fetch":
+		// Sanity check the month
+		maxMonth := 12
+		if year == currentYear {
+			maxMonth = int(currentMonth)
+		}
+		if month < 1 || month > maxMonth {
+			exit(fmt.Sprintf("Error: Please provide a month between 1 and %d", maxMonth), 1)
+		}
+
+		fm := paypal.NewEmptyFileManager(year)
+		if err := client.GetAndSaveMonth(year, month, fm); err != nil {
+			exit(fmt.Sprintf("Error: could not save transactions: %s", err), 1)
+		}
+
+	case "donors":
+		donors, err := donorInfo(year)
+		if err != nil {
+			exit(err.Error(), 1)
+		}
+
+		fmt.Printf("There were donations from %d donors:\n", len(donors))
+		for _, person := range donors {
+			if *emails {
+				fmt.Println(person.Email)
+			} else {
+				anon := ""
+				if person.Anonymous {
+					anon = util.Colorize(util.BrightYellow, "{Wishes to be Anonymous}")
+				}
+				fmt.Printf("  %s: %s (%d) %s\n",
+					util.Colorize(util.Yellow, fmt.Sprintf("%s <%s>", person.Name, person.Email)),
+					person.Total, person.Count, anon)
+			}
+		}
+
+	case "donor-thanks":
+		donors, err := donorInfo(year)
+		if err != nil {
+			exit(err.Error(), 1)
+		}
+
+		fmt.Printf("## Donor Thanks for %d\n", year)
+
+		anonCount := 0
+		for _, donor := range donors {
+			if donor.Anonymous {
+				anonCount++
+				continue
+			}
+			fmt.Printf("* %s\n", donor.Name)
+		}
+
+		fmt.Printf("\nThere were %d donors who wished to remain anonymous.", anonCount)
+
+	default:
+		fmt.Printf("Error: Unknown command %s.\n\n", cmd)
+		exit(fmt.Sprintf(usage, args[0]), 1)
 	}
-	// fmt.Println("Did not get a month")
-	summaryProcess()
 }
