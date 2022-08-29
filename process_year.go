@@ -17,11 +17,14 @@ func AddTransactions(year int, m util.MonthlySummaries) {
 	}
 
 	fmt.Printf("Adding %d transactions from CSV to the monthly summaries...\n", len(transactions))
+	otherSummary := util.NewSummary()
 	for _, t := range transactions {
 		_, month, _ := t.Date.Date()
 		fmt.Printf("    Merging in transaction [%s] to month %s\n", util.Colorize(util.Green, t.String()), month)
 		m.ForMonth(month).AddOneTime(t.Amt, t.FeeAmt, t.CurrencyCode)
+		otherSummary.AddOneTime(t.Amt, t.FeeAmt, t.CurrencyCode)
 	}
+	fmt.Printf("Total for other transactions: %s\n", otherSummary)
 }
 
 func SummarizeYear(year int, eurToUsdRate float32, fm *paypal.FileManager) *DonationSummary {
@@ -101,7 +104,7 @@ func ProcessYear(client *paypal.Client, year int, eurToUsdRate float32) (*Donati
 	if latest != 0 {
 		// Assume this is a partial month
 		t := fm.GetLatestTransaction()
-		fmt.Printf("The latest transaction is: %#v, with timestamp: %s\n", t, t.Timestamp)
+		// fmt.Printf("The latest transaction is: %#v, with timestamp: %s\n", t, t.Timestamp)
 		tYear, tMonth, tDay := t.Timestamp.Date()
 		// Start from the beginning of this day so we don't miss anything
 		startDate := fmt.Sprintf("%d-%02d-%02dT00:00:00Z", tYear, tMonth, tDay)
