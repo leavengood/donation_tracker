@@ -160,6 +160,8 @@ func main() {
 		os.Exit(0)
 
 	case "update":
+		fmt.Printf("Running on %s\n\n", time.Now().Format("Mon, Jan 2, 2006 at 03:04 pm"))
+
 		extraMsg := ""
 		if *skipUpload {
 			extraMsg = ", skipping upload of data."

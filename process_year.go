@@ -104,12 +104,25 @@ func ProcessYear(client *paypal.Client, year int, eurToUsdRate float32) (*Donati
 	if latest != 0 {
 		// Assume this is a partial month
 		t := fm.GetLatestTransaction()
+
+		var (
+			year, day int
+			month     time.Month
+		)
+		// There may not be any transactions so far this month
+		if t == nil {
+			// Go to the beginning of the month
+			year, month, day = time.Now().Date()
+			day = 1
+		} else {
+			year, month, day = t.Timestamp.Date()
+		}
 		// fmt.Printf("The latest transaction is: %#v, with timestamp: %s\n", t, t.Timestamp)
-		tYear, tMonth, tDay := t.Timestamp.Date()
+
 		// Start from the beginning of this day so we don't miss anything
-		startDate := fmt.Sprintf("%d-%02d-%02dT00:00:00Z", tYear, tMonth, tDay)
+		startDate := fmt.Sprintf("%d-%02d-%02dT00:00:00Z", year, month, day)
 		fmt.Printf("Fetching PayPal transactions newer than: %s\n", startDate)
-		newTxns := client.GetTransactions(startDate, paypal.GetEndDate(tYear, int(tMonth)))
+		newTxns := client.GetTransactions(startDate, paypal.GetEndDate(year, int(month)))
 		fmt.Printf("Found %d new transactions\n", len(newTxns))
 		previous := fm.Months[latest]
 		// Merge will remove any duplicates
