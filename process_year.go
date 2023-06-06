@@ -105,17 +105,14 @@ func ProcessYear(client *paypal.Client, year int, eurToUsdRate float32) (*Donati
 		// Assume this is a partial month
 		t := fm.GetLatestTransaction()
 
-		var (
-			year, day int
-			month     time.Month
-		)
+		month := time.Month(latest)
+		var day int
 		// There may not be any transactions so far this month
 		if t == nil {
 			// Go to the beginning of the month
-			year, month, day = time.Now().Date()
 			day = 1
 		} else {
-			year, month, day = t.Timestamp.Date()
+			day = t.Timestamp.Day()
 		}
 		// fmt.Printf("The latest transaction is: %#v, with timestamp: %s\n", t, t.Timestamp)
 
